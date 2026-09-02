@@ -35,7 +35,7 @@ export function ownershipChallengePrompt(): {
   return {
     challengeType: "internal_detail",
     prompt:
-      "Tell me one identifying detail inside or on the item that would not be visible from the public lost-and-found listing.",
+      "Share one identifying detail inside or on the item that would not appear on the public listing.",
     guidance:
       "Ask the passenger for a private detail (for example contents, engravings, or accessories). Do not invent or reveal restricted evidence. Submit their answer with verify_ownership.",
   };

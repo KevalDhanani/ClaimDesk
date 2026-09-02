@@ -2,13 +2,13 @@ import type { CaseStatus } from "@/lib/domain/types";
 
 const LABELS: Record<CaseStatus, string> = {
   draft: "Draft",
-  investigating: "Investigating",
-  candidates_found: "Candidates found",
-  ownership_pending: "Ownership pending",
-  ownership_verified: "Ownership verified",
-  recovery_prepared: "Recovery prepared",
-  recovery_authorized: "Authorized",
-  ready_for_collection: "Ready for collection",
+  investigating: "In progress",
+  candidates_found: "Matches found",
+  ownership_pending: "Confirm ownership",
+  ownership_verified: "Ownership confirmed",
+  recovery_prepared: "Pickup ready",
+  recovery_authorized: "Approved",
+  ready_for_collection: "Ready for pickup",
 };
 
 export function StatusBadge({ status }: { status: CaseStatus }) {
@@ -17,13 +17,19 @@ export function StatusBadge({ status }: { status: CaseStatus }) {
       ? "bg-[var(--success-soft)] text-[var(--success)]"
       : status === "ownership_pending"
         ? "bg-[var(--warning-soft)] text-[var(--warning)]"
-        : status.includes("verified") || status === "recovery_prepared"
+        : status === "ownership_verified" || status === "recovery_prepared"
           ? "bg-[var(--accent-soft)] text-[var(--accent)]"
-          : "bg-[var(--bg)] text-[var(--ink-muted)] border border-[var(--border)]";
+          : "bg-[#eef1f4] text-[var(--ink-muted)]";
 
   return (
-    <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-medium ${tone}`}>
+    <span
+      className={`inline-flex rounded px-2 py-0.5 text-[11px] font-semibold tracking-wide ${tone}`}
+    >
       {LABELS[status]}
     </span>
   );
+}
+
+export function statusLabel(status: CaseStatus): string {
+  return LABELS[status];
 }

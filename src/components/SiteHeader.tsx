@@ -2,25 +2,36 @@ import Link from "next/link";
 
 export function SiteHeader() {
   return (
-    <header className="border-b border-[var(--border)] bg-[var(--bg-elevated)]/90 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/" className="group flex items-baseline gap-3">
-          <span className="text-2xl font-semibold tracking-tight text-[var(--ink)]">
-            ClaimDesk
+    <header className="sticky top-0 z-40 border-b border-white/10 bg-[var(--navy-950)] text-white">
+      <div className="shell flex items-center justify-between gap-4 py-3.5">
+        <Link href="/" className="flex min-w-0 items-center gap-3">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-white text-xs font-bold tracking-tight text-[var(--navy-900)]">
+            AO
           </span>
-          <span className="text-xs uppercase tracking-[0.18em] text-[var(--ink-muted)]">
-            AeroOne Lost Property
+          <span className="min-w-0">
+            <span className="block text-[15px] font-semibold leading-tight">
+              ClaimDesk
+            </span>
+            <span className="block text-[11px] text-white/65">
+              AeroOne Lost Property
+            </span>
           </span>
         </Link>
-        <nav className="flex items-center gap-5 text-sm text-[var(--ink-muted)]">
-          <Link href="/" className="hover:text-[var(--ink)]">
-            Dashboard
+        <nav className="flex items-center gap-1 sm:gap-2">
+          <Link
+            href="/"
+            className="hidden rounded px-3 py-2 text-sm text-white/75 hover:bg-white/10 hover:text-white sm:inline-flex"
+          >
+            Home
           </Link>
           <Link
-            href="/report"
-            className="rounded-md bg-[var(--accent)] px-3.5 py-2 font-medium text-white hover:opacity-95"
+            href="/#claims"
+            className="hidden rounded px-3 py-2 text-sm text-white/75 hover:bg-white/10 hover:text-white sm:inline-flex"
           >
-            Report lost item
+            My claims
+          </Link>
+          <Link href="/report" className="btn btn-on-dark !px-4 !py-2">
+            Report an item
           </Link>
         </nav>
       </div>

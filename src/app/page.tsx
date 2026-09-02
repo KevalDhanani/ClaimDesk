@@ -1,61 +1,170 @@
 import Link from "next/link";
 import { recoveryService } from "@/lib/domain/recovery-service";
 import { StatusBadge } from "@/components/StatusBadge";
+import {
+  IconDesk,
+  IconLuggage,
+  IconPlane,
+  IconRoute,
+  IconSearch,
+  IconShieldCheck,
+} from "@/components/Icons";
+import { HeroPlanes } from "@/components/HeroPlanes";
 
 export const dynamic = "force-dynamic";
+
+const STEPS = [
+  {
+    title: "Match across locations",
+    body: "Search items held from aircraft, terminals, and airport lost & found desks linked to your AeroOne journey.",
+    Icon: IconSearch,
+  },
+  {
+    title: "Confirm it’s yours",
+    body: "Share a private identifying detail that wouldn’t appear on a public listing.",
+    Icon: IconShieldCheck,
+  },
+  {
+    title: "Collect with confidence",
+    body: "Approve pickup when you’re ready, then collect with photo ID at the designated desk.",
+    Icon: IconDesk,
+  },
+] as const;
+
+const KEY_FACTS = [
+  {
+    title: "Cabin & airport",
+    body: "Items left on board should be claimed via AeroOne. Terminal finds may also sit with partner airport desks.",
+  },
+  {
+    title: "Ownership check",
+    body: "Public listings omit private details. You’ll confirm a detail only the owner would know.",
+  },
+  {
+    title: "Pickup hours",
+    body: "Collection desks typically operate 08:00–20:00 IST. Bring government photo ID matching your claim.",
+  },
+  {
+    title: "Retention",
+    body: "Cabin property transferred to airport lost & found is generally held for up to 30 days.",
+  },
+] as const;
 
 export default async function DashboardPage() {
   const cases = await recoveryService.listCases();
   const flights = await recoveryService.listFlights();
 
   return (
-    <div className="space-y-10">
-      <section className="relative overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--bg-elevated)] px-8 py-12">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-70"
-          style={{
-            background:
-              "radial-gradient(ellipse at 0% 0%, #e8f0f8 0%, transparent 55%), radial-gradient(ellipse at 100% 100%, #f0ebe3 0%, transparent 50%)",
-          }}
-        />
-        <div className="relative max-w-2xl space-y-5">
-          <p className="text-xs font-medium uppercase tracking-[0.2em] text-[var(--accent)]">
-            AeroOne × ClaimDesk
+    <div>
+      <section className="hero">
+        <div className="hero-pattern" aria-hidden />
+        <div className="hero-glow" aria-hidden />
+        <div className="hero-art" aria-hidden>
+          <HeroPlanes />
+        </div>
+        <div className="hero-fade" aria-hidden />
+        <div className="shell relative z-[2] py-14 sm:py-16 lg:py-20">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--highlight)]">
+            AeroOne · Passenger assistance
           </p>
-          <h1 className="text-4xl font-semibold tracking-tight text-[var(--ink)] sm:text-5xl">
-            ClaimDesk
+          <h1 className="mt-3 max-w-2xl text-[clamp(2rem,4vw,2.75rem)] font-semibold leading-tight tracking-tight text-white">
+            Lost &amp; Found for your AeroOne journey
           </h1>
-          <p className="text-lg text-[var(--ink-muted)]">
-            Lost after your flight. Matched, proven, ready for pickup.
+          <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-white/75 sm:text-base">
+            Report something left behind on your flight or at a partner airport,
+            match it with held inventory, confirm ownership, and arrange pickup —
+            all in one official ClaimDesk case.
           </p>
-          <p className="max-w-xl text-[var(--ink-muted)]">
-            Recovery investigations across aircraft and airport custody — with
-            ownership verification and human authorization for final recovery.
-          </p>
-          <div className="flex flex-wrap gap-3 pt-2">
-            <Link
-              href="/report"
-              className="rounded-md bg-[var(--accent)] px-5 py-2.5 text-sm font-medium text-white"
-            >
-              Report lost item
+          <div className="mt-8 flex flex-wrap gap-3">
+            <Link href="/report" className="btn btn-on-dark">
+              Report an item
             </Link>
-            <span className="self-center text-xs text-[var(--ink-muted)]">
-              Data: Firestore · Demo passenger session
-            </span>
+            <Link href="/#claims" className="btn btn-ghost">
+              View my claims
+            </Link>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-8 lg:grid-cols-[1.4fr_1fr]">
-        <div className="space-y-4">
-          <div className="flex items-end justify-between">
-            <h2 className="text-lg font-semibold">Active recovery cases</h2>
-            <span className="text-sm text-[var(--ink-muted)]">{cases.length} open</span>
+      <section className="info-band" aria-label="Key information">
+        <div className="shell grid gap-6 py-8 sm:grid-cols-2 lg:grid-cols-4">
+          {KEY_FACTS.map((fact) => (
+            <div key={fact.title}>
+              <h2 className="text-sm font-semibold text-[var(--ink)]">{fact.title}</h2>
+              <p className="mt-2 text-xs leading-relaxed text-[var(--ink-muted)]">
+                {fact.body}
+              </p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section id="how-it-works" className="band scroll-mt-24">
+        <div className="shell py-12">
+          <div className="max-w-2xl">
+            <p className="section-title">How to find and report</p>
+            <h2 className="page-title mt-2">Reporting and retrieving lost items</h2>
+            <p className="mt-3 text-[var(--ink-muted)]">
+              You don’t need to know which desk is holding the item. Open a claim
+              with your flight details, then search found property across cabin and
+              airport custody.
+            </p>
           </div>
+          <div className="mt-8 grid gap-4 sm:grid-cols-3">
+            {STEPS.map(({ title, body, Icon }, index) => (
+              <div key={title} className="surface-lg p-5">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)]">
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <span className="text-xs font-semibold text-[var(--ink-subtle)]">
+                    Step {index + 1}
+                  </span>
+                </div>
+                <h3 className="mt-4 text-base font-semibold text-[var(--ink)]">
+                  {title}
+                </h3>
+                <p className="mt-2 text-sm leading-relaxed text-[var(--ink-muted)]">
+                  {body}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="shell grid gap-10 py-12 lg:grid-cols-[1.4fr_1fr]">
+        <div id="claims" className="scroll-mt-28 space-y-4">
+          <div className="flex items-baseline justify-between gap-3">
+            <div>
+              <p className="section-title">Your portal</p>
+              <h2 className="mt-1 text-xl font-semibold text-[var(--ink)]">
+                Your claims
+              </h2>
+            </div>
+            <span className="text-sm text-[var(--ink-subtle)]">
+              {cases.length} open
+            </span>
+          </div>
+
           {cases.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-[var(--border)] bg-[var(--bg-elevated)] px-6 py-10 text-[var(--ink-muted)]">
-              No investigations yet. Report a lost item to open a recovery case —
-              or ask an agent to investigate while this page is open.
+            <div className="surface-lg flex flex-col items-start gap-5 px-6 py-10 sm:flex-row sm:items-center">
+              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)]">
+                <IconLuggage className="h-9 w-9" title="Luggage" />
+              </span>
+              <div>
+                <p className="text-lg font-semibold text-[var(--ink)]">
+                  No open claims
+                </p>
+                <p className="mt-2 max-w-md text-sm text-[var(--ink-muted)]">
+                  If you left something on an AeroOne flight or in a partner
+                  terminal, report it here. After you submit, open the claim to
+                  search found items and confirm a match.
+                </p>
+                <Link href="/report" className="btn btn-primary mt-5">
+                  Report an item
+                </Link>
+              </div>
             </div>
           ) : (
             <ul className="space-y-3">
@@ -63,18 +172,23 @@ export default async function DashboardPage() {
                 <li key={c.id}>
                   <Link
                     href={`/cases/${c.id}`}
-                    className="block rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] px-5 py-4 transition hover:border-[var(--accent)]"
+                    className="surface-lg block px-5 py-4 transition hover:border-[var(--accent-bright)]"
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
-                        <p className="font-medium text-[var(--ink)]">{c.itemDescription}</p>
+                        <p className="font-semibold capitalize text-[var(--ink)]">
+                          {c.itemDescription}
+                        </p>
                         <p className="mt-1 text-sm text-[var(--ink-muted)]">
-                          {c.flightNumber} · {c.origin} → {c.destination} · {c.travelDate}
+                          {c.flightNumber} · {c.origin} → {c.destination} ·{" "}
+                          {c.travelDate}
                         </p>
                       </div>
                       <StatusBadge status={c.status} />
                     </div>
-                    <p className="mt-3 text-xs text-[var(--ink-muted)]">{c.id}</p>
+                    <p className="mt-3 font-mono text-[11px] text-[var(--ink-subtle)]">
+                      Claim {c.id}
+                    </p>
                   </Link>
                 </li>
               ))}
@@ -83,24 +197,34 @@ export default async function DashboardPage() {
         </div>
 
         <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Recent AeroOne flights</h2>
-          <ul className="divide-y divide-[var(--border)] rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)]">
+          <div className="flex items-center gap-2">
+            <IconPlane className="h-4 w-4 text-[var(--accent)]" />
+            <div>
+              <p className="section-title">Travel</p>
+              <h2 className="text-xl font-semibold text-[var(--ink)]">
+                Recent AeroOne flights
+              </h2>
+            </div>
+          </div>
+          <ul className="surface-lg divide-y divide-[var(--border)] overflow-hidden">
             {flights.slice(0, 6).map((f) => (
-              <li key={f.id} className="px-5 py-3.5">
+              <li key={f.id} className="px-5 py-4">
                 <div className="flex items-baseline justify-between gap-3">
-                  <span className="font-medium">{f.flightNumber}</span>
-                  <span className="text-xs text-[var(--ink-muted)]">{f.date}</span>
+                  <span className="font-semibold text-[var(--ink)]">{f.flightNumber}</span>
+                  <span className="text-xs text-[var(--ink-subtle)]">{f.date}</span>
                 </div>
-                <p className="mt-1 text-sm text-[var(--ink-muted)]">
-                  {f.origin} → {f.destination} · Gate {f.gate} · {f.aircraft}
+                <p className="mt-1 flex items-center gap-1.5 text-sm text-[var(--ink-muted)]">
+                  <IconRoute className="h-3.5 w-3.5 shrink-0 text-[var(--ink-subtle)]" />
+                  {f.origin} → {f.destination}
+                </p>
+                <p className="mt-0.5 text-xs text-[var(--ink-subtle)]">
+                  Gate {f.gate} · {f.aircraft} · Terminal {f.terminal}
                 </p>
               </li>
             ))}
           </ul>
-          <p className="text-xs leading-relaxed text-[var(--ink-muted)]">
-            Demo tip: lost black backpack on <strong>AO-123</strong> (1 Sep 2026),
-            uncertain aircraft vs airport. Private evidence for the strong match is a
-            small red keychain.
+          <p className="text-xs text-[var(--ink-subtle)]">
+            Claims are linked to your AeroOne booking details for faster matching.
           </p>
         </div>
       </section>

@@ -134,7 +134,7 @@ export class RecoveryService {
     await logActivity(
       recoveryCase.id,
       "case_created",
-      `Recovery investigation opened for “${input.itemDescription}” on ${recoveryCase.flightNumber}.`,
+      `Claim opened for “${input.itemDescription}” on ${recoveryCase.flightNumber}.`,
       actor,
       {
         flightNumber: recoveryCase.flightNumber,
@@ -204,7 +204,7 @@ export class RecoveryService {
       });
     }
 
-    // Prefer returning a manageable candidate set with custody diversity for the demo path
+    // Keep result sets manageable for the claim UI
     const limited = results.slice(0, 12).map(stripItem);
 
     if (input.recoveryCaseId) {
@@ -222,7 +222,7 @@ export class RecoveryService {
       await logActivity(
         recoveryCase.id,
         "search_performed",
-        `Searched found inventory for “${input.description}” across custody domains${input.custodyDomain ? ` (focused: ${input.custodyDomain})` : ""}. ${limited.length} candidate(s) returned.`,
+        `Searched found items for “${input.description}”${input.custodyDomain ? ` (${input.custodyDomain})` : ""}. ${limited.length} possible match(es) found.`,
         actor,
         {
           resultIds: limited.map((i) => i.id),
@@ -262,7 +262,7 @@ export class RecoveryService {
       await logActivity(
         recoveryCaseId,
         "item_inspected",
-        `Inspected public record for ${item.id} (${item.description}) held by ${item.custodyOwner}.`,
+        `Viewed details for ${item.description} (${item.id}), held by ${item.custodyOwner}.`,
         actor,
         { foundItemId: item.id, custodyDomain: item.custodyDomain }
       );
@@ -315,7 +315,7 @@ export class RecoveryService {
     await logActivity(
       recoveryCase.id,
       "match_compared",
-      `Compared ${item.id}: score ${scored.score}/100 (${scored.recommendation}).`,
+      `Reviewed match for ${item.description}: ${scored.score}% (${scored.recommendation.replace(/_/g, " ")}).`,
       actor,
       {
         foundItemId: item.id,
@@ -355,7 +355,7 @@ export class RecoveryService {
     await logActivity(
       recoveryCase.id,
       "evidence_requested",
-      `Ownership challenge issued for ${foundItemId}. Waiting for a private identifying detail from the passenger.`,
+      `Asked the passenger to confirm ownership for ${item.description}.`,
       actor,
       { foundItemId, challengeType: challenge.challengeType }
     );
@@ -388,14 +388,14 @@ export class RecoveryService {
       await logActivity(
         recoveryCase.id,
         "ownership_failed",
-        `Ownership evidence did not verify for ${input.foundItemId}.`,
+        `Ownership could not be confirmed for ${item.description}. Another detail may be needed.`,
         actor,
         { foundItemId: input.foundItemId }
       );
       return {
         verified: false as const,
         message:
-          "The provided detail does not match restricted ownership evidence for this item. Ask for another private identifying detail.",
+          "That detail didn’t match our records for this item. Please try another identifying detail only the owner would know.",
       };
     }
 
@@ -409,14 +409,14 @@ export class RecoveryService {
     await logActivity(
       recoveryCase.id,
       "ownership_verified",
-      `Ownership verified for ${input.foundItemId}. Restricted evidence was checked server-side and was not disclosed.`,
+      `Ownership confirmed for ${item.description}.`,
       actor,
       { foundItemId: input.foundItemId }
     );
 
     return {
       verified: true as const,
-      message: "Ownership verified. You may prepare a recovery request.",
+      message: "Ownership confirmed. You can prepare pickup details next.",
       recoveryCaseId: recoveryCase.id,
       foundItemId: input.foundItemId,
     };
@@ -447,12 +447,12 @@ export class RecoveryService {
       itemSummary: `${item.description} (${item.color}${item.brand ? `, ${item.brand}` : ""})`,
       custodyOwner: item.custodyOwner,
       pickupLocation,
-      pickupHours: "Daily 08:00–20:00 IST — bring photo ID matching the case passenger",
+      pickupHours: "Daily 08:00–20:00 IST — bring photo ID matching the booking passenger",
       instructions: [
-        "Present this recovery authorization and government photo ID at the pickup desk.",
-        `Reference case ${recoveryCase.id} and item ${item.id}.`,
-        "AeroOne cabin property transferred to airport lost & found is held for 30 days.",
-        "Do not share restricted ownership evidence publicly.",
+        "Bring this pickup confirmation and government photo ID to the desk.",
+        `Reference claim ${recoveryCase.id} and item ${item.id}.`,
+        "Cabin property transferred to airport lost & found is held for 30 days.",
+        "Do not share private identifying details in public channels.",
       ],
       preparedAt: nowIso(),
     };
@@ -467,7 +467,7 @@ export class RecoveryService {
     await logActivity(
       recoveryCase.id,
       "recovery_prepared",
-      `Recovery packet prepared for pickup at ${pickupLocation}. Awaiting human authorization.`,
+      `Pickup instructions prepared for ${pickupLocation}. Waiting for passenger confirmation.`,
       actor,
       { packet }
     );
@@ -476,7 +476,7 @@ export class RecoveryService {
       recoveryCaseId: recoveryCase.id,
       packet,
       nextStep:
-        "Ask the human to review the recovery packet and explicitly approve authorization before calling authorize_recovery.",
+        "Ask the passenger to review the pickup details and explicitly approve before calling authorize_recovery.",
     };
   }
 
@@ -486,14 +486,14 @@ export class RecoveryService {
     const recoveryCase = await this.getCase(input.recoveryCaseId);
 
     if (!recoveryCase.ownershipVerified) {
-      throw new Error("Cannot authorize recovery: ownership is not verified.");
+      throw new Error("Cannot confirm pickup: ownership is not confirmed.");
     }
     if (!recoveryCase.recoveryPrepared || !recoveryCase.recoveryPacket) {
-      throw new Error("Cannot authorize recovery: recovery packet has not been prepared.");
+      throw new Error("Cannot confirm pickup: pickup details have not been prepared.");
     }
     if (input.humanConfirmed !== true) {
       throw new Error(
-        "Human confirmation required. Set humanConfirmed=true only after the passenger explicitly approves authorization."
+        "Passenger confirmation required. Set humanConfirmed=true only after they explicitly approve pickup."
       );
     }
 
@@ -506,7 +506,7 @@ export class RecoveryService {
     await logActivity(
       recoveryCase.id,
       "recovery_authorized",
-      "Human authorized recovery. Marking ready for collection.",
+      "Pickup confirmed by the passenger.",
       actor
     );
 
@@ -518,7 +518,7 @@ export class RecoveryService {
     await logActivity(
       recoveryCase.id,
       "status_changed",
-      `Ready for collection at ${recoveryCase.recoveryPacket.pickupLocation}.`,
+      `Ready for pickup at ${recoveryCase.recoveryPacket.pickupLocation}.`,
       "system",
       { status: recoveryCase.status }
     );
@@ -527,7 +527,7 @@ export class RecoveryService {
       recoveryCaseId: recoveryCase.id,
       status: recoveryCase.status,
       packet: recoveryCase.recoveryPacket,
-      message: "Recovery authorized. Item is ready for collection.",
+      message: "Pickup confirmed. The item is ready for collection.",
     };
   }
 

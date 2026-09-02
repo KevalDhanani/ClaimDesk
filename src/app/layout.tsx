@@ -1,23 +1,26 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
 import "./globals.css";
 import { SiteHeader } from "@/components/SiteHeader";
+import { SiteFooter } from "@/components/SiteFooter";
 import { WebMcpBootstrap } from "@/components/WebMcpBootstrap";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const plexSans = IBM_Plex_Sans({
+  variable: "--font-ui",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const plexMono = IBM_Plex_Mono({
+  variable: "--font-mono",
   subsets: ["latin"],
+  weight: ["400", "500"],
 });
 
 export const metadata: Metadata = {
-  title: "ClaimDesk — AeroOne Lost Property Recovery",
+  title: "ClaimDesk | AeroOne Lost Property",
   description:
-    "Airline lost-property recovery. Report what happened, match found items, prove ownership, and authorize pickup.",
+    "Report and retrieve items left behind on AeroOne journeys. Match found property, confirm ownership, and arrange pickup.",
 };
 
 export default function RootLayout({
@@ -27,11 +30,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className={`${plexSans.variable} ${plexMono.variable} antialiased`}>
         <WebMcpBootstrap />
-        <div className="min-h-screen">
+        <div className="flex min-h-screen flex-col">
           <SiteHeader />
-          <main className="mx-auto max-w-6xl px-6 py-10">{children}</main>
+          <main className="w-full flex-1">{children}</main>
+          <SiteFooter />
         </div>
       </body>
     </html>

@@ -32,8 +32,8 @@ export function WebMcpBootstrap() {
   }, [status]);
 
   return (
-    <span className="sr-only" data-webmcp={status} aria-hidden>
-      WebMCP {status}
+    <span className="sr-only" data-capabilities={status} aria-hidden>
+      App capabilities {status}
     </span>
   );
 }

@@ -1,14 +1,17 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { StatusBadge } from "@/components/StatusBadge";
 import { useCaseLive } from "@/hooks/useCaseLive";
 import { recoveryApi } from "@/lib/api/client";
+import { actorLabel, recommendationLabel } from "@/lib/ui/labels";
+import { IconSearch } from "@/components/Icons";
 import type { CustodyDomain, MatchComparison } from "@/lib/domain/types";
 
 const CUSTODY_LABEL: Record<CustodyDomain, string> = {
-  aircraft: "Aircraft custody",
+  aircraft: "Aircraft",
   airport_lnf: "Airport lost & found",
   terminal_gate: "Terminal / gate",
 };
@@ -21,7 +24,7 @@ export default function CasePage() {
 
   const [busy, setBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
-  const [searchDesc, setSearchDesc] = useState("black backpack");
+  const [searchDesc, setSearchDesc] = useState("");
   const [custody, setCustody] = useState<CustodyDomain | "">("");
   const [evidence, setEvidence] = useState("");
   const [challengePrompt, setChallengePrompt] = useState<string | null>(null);
@@ -39,79 +42,103 @@ export default function CasePage() {
       await fn();
       await refresh();
     } catch (e) {
-      setActionError(e instanceof Error ? e.message : "Action failed");
+      setActionError(e instanceof Error ? e.message : "Something went wrong");
     } finally {
       setBusy(null);
     }
   }
 
   if (loading && !recoveryCase) {
-    return <p className="text-[var(--ink-muted)]">Loading case file…</p>;
+    return (
+      <div className="shell py-10 text-[var(--ink-muted)]">Loading your claim…</div>
+    );
   }
   if (error || !recoveryCase) {
-    return <p className="text-[var(--danger)]">{error ?? "Case not found"}</p>;
+    return (
+      <div className="shell space-y-3 py-10">
+        <p className="text-[var(--danger)]">{error ?? "Claim not found"}</p>
+        <Link href="/" className="text-sm text-[var(--accent)]">
+          ← Back to home
+        </Link>
+      </div>
+    );
   }
 
+  const searchValue = searchDesc || recoveryCase.itemDescription;
+
   return (
-    <div className="space-y-8">
-      <header className="space-y-3 border-b border-[var(--border)] pb-6">
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.16em] text-[var(--ink-muted)]">
-              Recovery case · {recoveryCase.id}
-            </p>
-            <h1 className="mt-1 text-3xl font-semibold tracking-tight">
-              {recoveryCase.itemDescription}
-            </h1>
-            <p className="mt-2 text-[var(--ink-muted)]">
-              {recoveryCase.flightNumber} · {recoveryCase.origin} →{" "}
-              {recoveryCase.destination} · {recoveryCase.travelDate}
-              {recoveryCase.lastKnownLocation
-                ? ` · Last known: ${recoveryCase.lastKnownLocation}`
-                : ""}
-            </p>
-          </div>
-          <StatusBadge status={recoveryCase.status} />
+    <div className="shell space-y-8 py-8 sm:py-10">
+      <div>
+        <Link
+          href="/#claims"
+          className="text-sm text-[var(--ink-muted)] hover:text-[var(--accent)]"
+        >
+          ← My claims
+        </Link>
+      </div>
+
+      <header className="surface-lg flex flex-col gap-4 px-5 py-5 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <p className="font-mono text-[11px] text-[var(--ink-subtle)]">
+            Claim {recoveryCase.id}
+          </p>
+          <h1 className="page-title mt-1 capitalize">{recoveryCase.itemDescription}</h1>
+          <p className="mt-2 text-sm text-[var(--ink-muted)]">
+            {recoveryCase.flightNumber} · {recoveryCase.origin} →{" "}
+            {recoveryCase.destination} · {recoveryCase.travelDate}
+            {recoveryCase.lastKnownLocation
+              ? ` · Last seen: ${recoveryCase.lastKnownLocation}`
+              : ""}
+          </p>
         </div>
+        <StatusBadge status={recoveryCase.status} />
       </header>
 
       {actionError && (
-        <p className="rounded-md bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger)]">
+        <p className="rounded bg-[var(--danger-soft)] px-4 py-3 text-sm text-[var(--danger)]">
           {actionError}
         </p>
       )}
 
-      <div className="grid gap-8 lg:grid-cols-[1.35fr_0.9fr]">
-        <div className="space-y-8">
-          <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] p-5">
-            <h2 className="text-base font-semibold">Cross-custody search</h2>
-            <p className="mt-1 text-sm text-[var(--ink-muted)]">
-              Search aircraft, airport lost & found, and terminal/gate inventories.
-            </p>
+      <div className="grid gap-8 lg:grid-cols-[1.35fr_0.85fr]">
+        <div className="space-y-6">
+          <section className="surface-lg p-5">
+            <div className="flex items-start gap-3">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded bg-[var(--accent-soft)] text-[var(--accent)]">
+                <IconSearch className="h-4 w-4" />
+              </span>
+              <div>
+                <h2 className="text-base font-semibold">Search found items</h2>
+                <p className="mt-1 text-sm text-[var(--ink-muted)]">
+                  Look across aircraft holds, airport lost & found, and terminal
+                  areas for a match to this claim.
+                </p>
+              </div>
+            </div>
             <div className="mt-4 flex flex-col gap-3 sm:flex-row">
               <input
-                className="flex-1 rounded-md border border-[var(--border)] px-3 py-2 text-sm"
-                value={searchDesc}
+                className="field flex-1"
+                value={searchValue}
                 onChange={(e) => setSearchDesc(e.target.value)}
-                placeholder="Item description"
+                placeholder="Describe the item"
               />
               <select
-                className="rounded-md border border-[var(--border)] px-3 py-2 text-sm"
+                className="field sm:max-w-[200px]"
                 value={custody}
                 onChange={(e) => setCustody(e.target.value as CustodyDomain | "")}
               >
-                <option value="">All custody domains</option>
+                <option value="">All locations</option>
                 <option value="aircraft">Aircraft</option>
-                <option value="airport_lnf">Airport L&F</option>
+                <option value="airport_lnf">Airport lost & found</option>
                 <option value="terminal_gate">Terminal / gate</option>
               </select>
               <button
                 disabled={!!busy}
-                className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                className="btn btn-primary"
                 onClick={() =>
                   run("search", async () => {
                     await recoveryApi.search({
-                      description: searchDesc,
+                      description: searchValue,
                       flightNumber: recoveryCase.flightNumber,
                       date: recoveryCase.travelDate,
                       custodyDomain: custody || undefined,
@@ -121,43 +148,42 @@ export default function CasePage() {
                   })
                 }
               >
-                {busy === "search" ? "Searching…" : "Search inventory"}
+                {busy === "search" ? "Searching…" : "Search"}
               </button>
             </div>
           </section>
 
           <section className="space-y-3">
-            <h2 className="text-base font-semibold">Candidates & investigation notes</h2>
+            <h2 className="text-base font-semibold">Possible matches</h2>
             {candidates.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-[var(--border)] px-5 py-8 text-sm text-[var(--ink-muted)]">
-                No candidates yet. Run a search or let an assistant investigate while this case is open.
-              </p>
+              <div className="surface-lg px-5 py-8 text-sm text-[var(--ink-muted)]">
+                No matches yet. Search found items to see what may belong to you.
+              </div>
             ) : (
-              <ul className="space-y-3">
+              <ul className="space-y-2">
                 {candidates.map((item) => {
                   const cmp = comparisonsById.get(item.id);
                   return (
-                    <li
-                      key={item.id}
-                      className="rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] p-5"
-                    >
+                    <li key={item.id} className="surface-lg p-5">
                       <div className="flex flex-wrap items-start justify-between gap-3">
                         <div>
-                          <p className="font-medium">
-                            {item.description}{" "}
-                            <span className="text-[var(--ink-muted)]">· {item.id}</span>
+                          <p className="font-medium text-[var(--ink)]">
+                            {item.description}
+                            <span className="ml-2 font-mono text-[11px] font-normal text-[var(--ink-subtle)]">
+                              {item.id}
+                            </span>
                           </p>
                           <p className="mt-1 text-sm text-[var(--ink-muted)]">
                             {item.foundLocation}
                           </p>
-                          <p className="mt-1 text-xs text-[var(--accent)]">
+                          <p className="mt-1 text-xs text-[var(--ink-subtle)]">
                             {CUSTODY_LABEL[item.custodyDomain]} · {item.custodyOwner}
                             {item.flightNumber ? ` · ${item.flightNumber}` : ""}
                           </p>
                         </div>
                         {cmp && (
-                          <span className="rounded-full bg-[var(--accent-soft)] px-2.5 py-1 text-xs font-medium text-[var(--accent)]">
-                            {cmp.score}/100 · {cmp.recommendation.replace("_", " ")}
+                          <span className="rounded bg-[var(--accent-soft)] px-2 py-1 text-[11px] font-semibold text-[var(--accent)]">
+                            {cmp.score}% · {recommendationLabel(cmp.recommendation)}
                           </span>
                         )}
                       </div>
@@ -166,12 +192,12 @@ export default function CasePage() {
                         <div className="mt-3 space-y-1 text-sm">
                           {cmp.reasons.map((r) => (
                             <p key={r} className="text-[var(--success)]">
-                              + {r}
+                              {r}
                             </p>
                           ))}
                           {cmp.rejectionReasons.map((r) => (
                             <p key={r} className="text-[var(--danger)]">
-                              − {r}
+                              {r}
                             </p>
                           ))}
                         </div>
@@ -180,7 +206,7 @@ export default function CasePage() {
                       <div className="mt-4 flex flex-wrap gap-2">
                         <button
                           disabled={!!busy}
-                          className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs font-medium hover:border-[var(--accent)]"
+                          className="btn btn-secondary !px-3 !py-1.5 !text-xs"
                           onClick={() =>
                             run(`compare-${item.id}`, async () => {
                               await recoveryApi.compare({
@@ -191,11 +217,11 @@ export default function CasePage() {
                             })
                           }
                         >
-                          Compare match
+                          Review match
                         </button>
                         <button
                           disabled={!!busy}
-                          className="rounded-md border border-[var(--border)] px-3 py-1.5 text-xs font-medium hover:border-[var(--accent)]"
+                          className="btn btn-secondary !px-3 !py-1.5 !text-xs"
                           onClick={() =>
                             run(`evidence-${item.id}`, async () => {
                               const res = await recoveryApi.requestEvidence({
@@ -207,7 +233,7 @@ export default function CasePage() {
                             })
                           }
                         >
-                          Request ownership evidence
+                          Confirm it’s yours
                         </button>
                       </div>
                     </li>
@@ -217,27 +243,27 @@ export default function CasePage() {
             )}
           </section>
 
-          <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] p-5">
-            <h2 className="text-base font-semibold">Ownership verification</h2>
+          <section className="surface-lg p-5">
+            <h2 className="text-base font-semibold">Confirm it’s yours</h2>
             <p className="mt-1 text-sm text-[var(--ink-muted)]">
-              Public listings omit restricted details. Provide a private identifying
-              clue only you would know.
+              Public listings don’t show private details. Share something only the
+              owner would know so we can confirm the match.
             </p>
             {challengePrompt && (
-              <p className="mt-3 rounded-md bg-[var(--warning-soft)] px-3 py-2 text-sm text-[var(--warning)]">
+              <p className="mt-3 rounded bg-[var(--warning-soft)] px-3 py-2 text-sm text-[var(--warning)]">
                 {challengePrompt}
               </p>
             )}
             <div className="mt-4 flex flex-col gap-3 sm:flex-row">
               <input
-                className="flex-1 rounded-md border border-[var(--border)] px-3 py-2 text-sm"
+                className="field flex-1"
                 placeholder="e.g. small red keychain inside"
                 value={evidence}
                 onChange={(e) => setEvidence(e.target.value)}
               />
               <button
                 disabled={!!busy || !recoveryCase.selectedFoundItemId}
-                className="rounded-md bg-[var(--accent)] px-4 py-2 text-sm font-medium text-white disabled:opacity-60"
+                className="btn btn-primary"
                 onClick={() =>
                   run("verify", async () => {
                     if (!recoveryCase.selectedFoundItemId) return;
@@ -250,27 +276,27 @@ export default function CasePage() {
                   })
                 }
               >
-                Verify ownership
+                Submit confirmation
               </button>
             </div>
             {recoveryCase.ownershipVerified && (
               <p className="mt-3 text-sm font-medium text-[var(--success)]">
-                Ownership verified
-                {selectedItem ? ` for ${selectedItem.id}` : ""}.
+                Ownership confirmed
+                {selectedItem ? ` for ${selectedItem.description}` : ""}.
               </p>
             )}
           </section>
 
-          <section className="rounded-xl border border-[var(--border)] bg-[var(--bg-elevated)] p-5">
-            <h2 className="text-base font-semibold">Recovery packet & authorization</h2>
+          <section className="surface-lg p-5">
+            <h2 className="text-base font-semibold">Pickup details</h2>
             <p className="mt-1 text-sm text-[var(--ink-muted)]">
-              The agent (or you) prepares a pickup brief. Final authorization requires
-              an explicit human decision.
+              After ownership is confirmed, prepare pickup instructions. You must
+              approve before the item is released.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 disabled={!!busy || !recoveryCase.ownershipVerified}
-                className="rounded-md border border-[var(--border)] px-3 py-2 text-sm font-medium disabled:opacity-60"
+                className="btn btn-secondary"
                 onClick={() =>
                   run("prepare", async () => {
                     await recoveryApi.prepare({
@@ -280,17 +306,17 @@ export default function CasePage() {
                   })
                 }
               >
-                Prepare recovery request
+                Prepare pickup
               </button>
               <button
                 disabled={!!busy || !recoveryCase.recoveryPrepared}
-                className="rounded-md bg-[var(--success)] px-3 py-2 text-sm font-medium text-white disabled:opacity-60"
+                className="btn btn-success"
                 onClick={() =>
                   run("authorize", async () => {
                     const confirmed = window.confirm(
-                      "Authorize recovery for this verified item? This is a consequential action."
+                      "Confirm pickup for this item? This releases it for collection."
                     );
-                    if (!confirmed) throw new Error("Authorization cancelled by human.");
+                    if (!confirmed) throw new Error("Pickup confirmation cancelled.");
                     await recoveryApi.authorize({
                       recoveryCaseId: recoveryCase.id,
                       humanConfirmed: true,
@@ -299,22 +325,22 @@ export default function CasePage() {
                   })
                 }
               >
-                Authorize recovery
+                Confirm pickup
               </button>
             </div>
 
             {recoveryCase.recoveryPacket && (
-              <div className="mt-5 space-y-2 rounded-lg bg-[var(--bg)] p-4 text-sm">
-                <p className="font-medium">Prepared recovery packet</p>
+              <div className="mt-5 space-y-2 rounded border border-[var(--border)] bg-[var(--bg)] p-4 text-sm">
+                <p className="font-semibold text-[var(--ink)]">Pickup summary</p>
                 <p>{recoveryCase.recoveryPacket.itemSummary}</p>
                 <p className="text-[var(--ink-muted)]">
-                  Pickup: {recoveryCase.recoveryPacket.pickupLocation}
+                  Location: {recoveryCase.recoveryPacket.pickupLocation}
                 </p>
                 <p className="text-[var(--ink-muted)]">
                   Hours: {recoveryCase.recoveryPacket.pickupHours}
                 </p>
                 <p className="text-[var(--ink-muted)]">
-                  Custody: {recoveryCase.recoveryPacket.custodyOwner}
+                  Held by: {recoveryCase.recoveryPacket.custodyOwner}
                 </p>
                 <ul className="list-disc space-y-1 pl-5 text-[var(--ink-muted)]">
                   {recoveryCase.recoveryPacket.instructions.map((i) => (
@@ -325,42 +351,43 @@ export default function CasePage() {
             )}
 
             {recoveryCase.status === "ready_for_collection" && (
-              <p className="mt-4 rounded-md bg-[var(--success-soft)] px-3 py-2 text-sm font-medium text-[var(--success)]">
-                Ready for collection
+              <p className="mt-4 rounded bg-[var(--success-soft)] px-3 py-2 text-sm font-medium text-[var(--success)]">
+                Ready for pickup
                 {recoveryCase.recoveryPacket
-                  ? ` — ${recoveryCase.recoveryPacket.pickupLocation}`
+                  ? ` at ${recoveryCase.recoveryPacket.pickupLocation}`
                   : ""}
               </p>
             )}
           </section>
         </div>
 
-        <aside className="space-y-4">
-          <h2 className="text-base font-semibold">Investigation timeline</h2>
-          <p className="text-xs text-[var(--ink-muted)]">
-            Updates live when you or an assistant act on this case.
+        <aside className="space-y-3">
+          <h2 className="text-base font-semibold">Activity</h2>
+          <p className="text-xs text-[var(--ink-subtle)]">
+            Updates appear as your claim progresses.
           </p>
-          <ol className="space-y-3">
+          <ol className="space-y-2">
             {activities.length === 0 ? (
-              <li className="text-sm text-[var(--ink-muted)]">No activity yet.</li>
+              <li className="surface-lg px-4 py-3 text-sm text-[var(--ink-muted)]">
+                No activity yet.
+              </li>
             ) : (
               activities
                 .slice()
                 .reverse()
                 .map((a) => (
-                  <li
-                    key={a.id}
-                    className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] px-4 py-3"
-                  >
+                  <li key={a.id} className="surface-lg px-4 py-3">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[10px] uppercase tracking-wider text-[var(--ink-muted)]">
-                        {a.actor} · {a.type.replace(/_/g, " ")}
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-[var(--ink-subtle)]">
+                        {actorLabel(a.actor)}
                       </span>
-                      <span className="text-[10px] text-[var(--ink-muted)]">
-                        {new Date(a.timestamp).toLocaleTimeString()}
+                      <span className="text-[10px] text-[var(--ink-subtle)]">
+                        {new Date(a.timestamp).toLocaleString()}
                       </span>
                     </div>
-                    <p className="mt-1 text-sm leading-snug">{a.message}</p>
+                    <p className="mt-1.5 text-sm leading-snug text-[var(--ink)]">
+                      {a.message}
+                    </p>
                   </li>
                 ))
             )}

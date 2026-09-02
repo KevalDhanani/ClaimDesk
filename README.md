@@ -6,18 +6,18 @@ Airline lost-property recovery for the OpenAI WebMCP Challenge.
 
 ## What this is
 
-ClaimDesk is a recovery **investigation** system for a fictional airline (AeroOne):
+ClaimDesk is AeroOne’s passenger lost-property portal:
 
-- Passengers describe what happened and authorize consequential recovery.
-- Agents investigate across aircraft / airport / terminal custody via WebMCP tools.
-- Ownership is verified with a private-evidence challenge (secrets never leave the server).
-- One product, one state, one domain layer — React UI and WebMCP call the same APIs.
-- **All data lives in Firebase Firestore**, accessed only from the Next.js backend (Admin SDK). The browser never talks to Firestore directly.
+- Passengers report items left behind and confirm pickup.
+- Matching, ownership confirmation, and pickup flow through one claim file.
+- The browser never talks to Firestore directly — only the Next.js backend (Admin SDK) does.
+- WebMCP tools (invisible in the UI) call the same APIs as the human interface.
 
 ## Stack
 
-- Next.js (App Router) + TypeScript + Tailwind
+- Next.js (App Router) + TypeScript + Tailwind CSS v4
 - Firebase Firestore via **Firebase Admin SDK** (server only)
+- IBM Plex Sans / IBM Plex Mono (UI typography)
 
 ## Setup
 
@@ -38,20 +38,64 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-## Golden demo path
+## UI design system (for future reference)
 
-1. Open the app in ChatGPT’s in-app browser (WebMCP) or Chrome with WebMCP enabled.
-2. Ask the agent:
+Use this section when changing look & feel so the product stays passenger-real — not a hackathon/AI demo skin.
 
-> I lost my black backpack on AO-123 yesterday (2026-09-01), Mumbai → Delhi. I'm not sure whether I left it on the aircraft or at the airport. Please investigate.
+### Product voice
 
-3. When asked for a private detail, answer: **small red keychain**
-4. When asked to authorize recovery, say **yes**.
-5. Watch the case file timeline update live.
+- Write like an airline self-service portal (United / Emirates / IndiGo style).
+- Prefer: claim, match, confirm ownership, pickup.
+- Avoid in **any user-visible copy**: demo, Firebase, Firestore, WebMCP, MCP, agent, AI, investigation jargon, “hackathon”.
+- Timeline actors in UI: **You** / **ClaimDesk** / **System** (map from internal `human` / `agent` / `system`).
+- Keep WebMCP registration invisible (`WebMcpBootstrap` is screen-reader only).
+
+### Visual principles
+
+| Principle | Guidance |
+|---|---|
+| Facility portal | Inspired by real airline/airport lost-property pages (e.g. CSMIA-style hierarchy): hero, key info, how-it-works, then utility |
+| Brand-first AeroOne | Deep navy header/footer, gold accent line in hero — not a gray SaaS admin skin |
+| Minimal product core | Claims list + claim detail remain the workflow; marketing frames them |
+| Anti-AI look | No purple kits, no cream+terracotta templates, no glow spam |
+
+### Layout shells
+
+- Full-width `main`; page sections use `.shell` (max ~1120px)
+- `.hero` — atmospheric navy gradient + pattern for home/report intros
+- `.info-band` / `.band` — warm key-info and how-it-works sections
+- `.surface-lg` — elevated cards for claims and forms
+
+### Brand presence
+
+- Sticky deep-navy header with white Report CTA
+- Home hero: Lost & Found for your AeroOne journey + dual CTAs
+- Key information strip (cabin/airport, ownership, hours, retention)
+- How it works: Match → Confirm → Collect
+- Footer: full AeroOne facility-style footer
+- **My claims** → `/#claims`
+
+### Icons
+
+Inline SVGs in `src/components/Icons.tsx` (plane, search, shield, desk, luggage, route). Monochrome stroke icons.
+
+### Do not regress
+
+- Do not show storage/backend details in the UI
+- Do not prefill “demo tip” copy on the dashboard
+- Do not add Agent Mode, MCP settings, or tool consoles
+- Prefer restrained radius and soft elevation over flat Bootstrap boxes
+
+## Golden demo path (operators only — not shown in UI)
+
+1. Open the app in ChatGPT’s in-app browser or Chrome with WebMCP enabled.
+2. Prompt: lost black backpack on AO-123 (2026-09-01), Mumbai → Delhi, unsure aircraft vs airport.
+3. Ownership detail: **small red keychain**
+4. Approve pickup when asked.
 
 ## WebMCP tools
 
-Registered via `document.modelContext.registerTool` (see `src/lib/webmcp/register-tools.ts`):
+Registered via `document.modelContext.registerTool` (see `src/lib/webmcp/register-tools.ts`). Tool descriptions may mention agent workflows; they are not shown in the passenger UI.
 
 - `create_recovery_case`
 - `get_flight_details`
