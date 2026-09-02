@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Public case file reads for live UI (demo, no auth).
+    match /flights/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /foundItems/{id} {
+      allow read: if true;
+      allow write: if false;
+      match /secrets/{doc} {
+        allow read, write: if false;
+      }
+    }
+    match /recoveryCases/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+    match /activities/{id} {
+      allow read: if true;
+      allow write: if false;
+    }
+  }
+}
