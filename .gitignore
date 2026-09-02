@@ -42,3 +42,6 @@ next-env.d.ts
 # firebase
 serviceAccountKey.json
 *-firebase-adminsdk-*.json
+
+# unwanted docs
+docs.md

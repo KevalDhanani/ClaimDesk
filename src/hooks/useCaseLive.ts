@@ -1,11 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
 import { recoveryApi } from "@/lib/api/client";
 import type { Activity, FoundItemPublic, RecoveryCase } from "@/lib/domain/types";
-import { getClientDb, isFirebaseClientConfigured } from "@/lib/firebase/client";
 
+/** Live case updates via backend API polling (no client Firebase). */
 export function useCaseLive(caseId: string) {
   const [recoveryCase, setRecoveryCase] = useState<RecoveryCase | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -31,27 +30,6 @@ export function useCaseLive(caseId: string) {
 
   useEffect(() => {
     refresh();
-
-    if (isFirebaseClientConfigured()) {
-      const db = getClientDb();
-      if (db) {
-        const unsubCase = onSnapshot(doc(db, "recoveryCases", caseId), () => {
-          refresh();
-        });
-        const activitiesQuery = query(
-          collection(db, "activities"),
-          where("recoveryCaseId", "==", caseId)
-        );
-        const unsubActivities = onSnapshot(activitiesQuery, () => {
-          refresh();
-        });
-        return () => {
-          unsubCase();
-          unsubActivities();
-        };
-      }
-    }
-
     const id = window.setInterval(refresh, 2000);
     return () => window.clearInterval(id);
   }, [caseId, refresh]);

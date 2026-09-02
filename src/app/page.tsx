@@ -1,14 +1,12 @@
 import Link from "next/link";
 import { recoveryService } from "@/lib/domain/recovery-service";
 import { StatusBadge } from "@/components/StatusBadge";
-import { usingMemoryStore } from "@/lib/data";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardPage() {
   const cases = await recoveryService.listCases();
   const flights = await recoveryService.listFlights();
-  const storeLabel = usingMemoryStore() ? "Local demo store" : "Firestore";
 
   return (
     <div className="space-y-10">
@@ -42,7 +40,7 @@ export default async function DashboardPage() {
               Report lost item
             </Link>
             <span className="self-center text-xs text-[var(--ink-muted)]">
-              Data: {storeLabel} · Demo passenger session
+              Data: Firestore · Demo passenger session
             </span>
           </div>
         </div>

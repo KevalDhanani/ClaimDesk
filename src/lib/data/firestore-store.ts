@@ -95,39 +95,4 @@ export class FirestoreStore implements DataStore {
     await this.db().collection("activities").doc(activity.id).set(activity);
     return activity;
   }
-
-  async upsertFlight(flight: Flight): Promise<void> {
-    await this.db().collection("flights").doc(flight.id).set(flight);
-  }
-
-  async upsertFoundItem(
-    item: FoundItemPublic,
-    secrets?: FoundItemSecret
-  ): Promise<void> {
-    await this.db().collection("foundItems").doc(item.id).set(item);
-    if (secrets) {
-      await this.db()
-        .collection("foundItems")
-        .doc(item.id)
-        .collection("secrets")
-        .doc("evidence")
-        .set(secrets);
-    }
-  }
-
-  async clearAll(): Promise<void> {
-    const collections = ["flights", "foundItems", "recoveryCases", "activities"];
-    for (const name of collections) {
-      const snap = await this.db().collection(name).get();
-      const batch = this.db().batch();
-      for (const doc of snap.docs) {
-        if (name === "foundItems") {
-          const secrets = await doc.ref.collection("secrets").get();
-          secrets.docs.forEach((s) => batch.delete(s.ref));
-        }
-        batch.delete(doc.ref);
-      }
-      await batch.commit();
-    }
-  }
 }

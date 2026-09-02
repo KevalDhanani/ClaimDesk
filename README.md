@@ -12,32 +12,33 @@ ClaimDesk is a recovery **investigation** system for a fictional airline (AeroOn
 - Agents investigate across aircraft / airport / terminal custody via WebMCP tools.
 - Ownership is verified with a private-evidence challenge (secrets never leave the server).
 - One product, one state, one domain layer — React UI and WebMCP call the same APIs.
+- **All data lives in Firebase Firestore**, accessed only from the Next.js backend (Admin SDK). The browser never talks to Firestore directly.
 
 ## Stack
 
 - Next.js (App Router) + TypeScript + Tailwind
-- Firebase Firestore (Admin SDK) when configured
-- In-memory store fallback for local demo without Firebase credentials
+- Firebase Firestore via **Firebase Admin SDK** (server only)
 
-## Quick start
+## Setup
+
+1. Copy `.env.example` to `.env.local` and set:
+
+```env
+FIREBASE_ADMIN_PROJECT_ID=...
+FIREBASE_ADMIN_CLIENT_EMAIL=...
+FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n"
+```
+
+2. Install and run:
 
 ```bash
 npm install
-cp .env.example .env.local
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
 
-### Firebase
-
-Set the variables in `.env.local` from `.env.example`. Use `DATA_STORE=firestore` with Admin credentials for Firebase-only mode. If Admin credentials are missing, the app uses the memory store (seeded on first request).
-
-```bash
-npm run seed   # force reseed (memory or Firestore)
-```
-
-### Golden demo path
+## Golden demo path
 
 1. Open the app in ChatGPT’s in-app browser (WebMCP) or Chrome with WebMCP enabled.
 2. Ask the agent:
