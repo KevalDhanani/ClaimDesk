@@ -34,9 +34,10 @@ const tools: ToolDefinition[] = [
   {
     name: "create_recovery_case",
     description:
-      "Open a new claim from the passenger's item and flight details. Returns recoveryCaseId. Next: get_flight_details, then search_found_items with recoveryCaseId + flightNumber + date. If a claim already exists, use get_recovery_status instead. Unknown flights still create a claim — confirm details with the passenger.",
+      "Open a new claim from item and flight details. Contact name/email/phone are optional — do not block on them. travelDate must be YYYY-MM-DD. Returns recoveryCaseId. Next: get_flight_details, then search_found_items with recoveryCaseId + flightNumber + date. If a claim already exists, use get_recovery_status instead.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         flightNumber: {
           type: "string",
@@ -44,7 +45,7 @@ const tools: ToolDefinition[] = [
         },
         travelDate: {
           type: "string",
-          description: "Travel date YYYY-MM-DD",
+          description: "Travel date YYYY-MM-DD, e.g. 2026-09-01",
         },
         origin: { type: "string", description: "Departure city/airport" },
         destination: { type: "string", description: "Arrival city/airport" },
@@ -56,6 +57,18 @@ const tools: ToolDefinition[] = [
           type: "string",
           description:
             "Optional: aircraft, seat, gate, airport, baggage claim, or unknown",
+        },
+        contactName: {
+          type: "string",
+          description: "Optional passenger name. Not required to open a claim.",
+        },
+        contactEmail: {
+          type: "string",
+          description: "Optional email. Not required to open a claim.",
+        },
+        contactPhone: {
+          type: "string",
+          description: "Optional phone. Not required to open a claim.",
         },
       },
       required: [
@@ -74,6 +87,7 @@ const tools: ToolDefinition[] = [
       "Look up route, aircraft, terminal, and gate. Call after create_recovery_case and pass recoveryCaseId so it logs on the claim. If the flight is missing, ask the passenger to confirm — do not invent one.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         flightNumber: {
           type: "string",
@@ -98,6 +112,7 @@ const tools: ToolDefinition[] = [
       "Search unclaimed found items. Pass recoveryCaseId, flightNumber, and date when you have them. Omit custodyDomain if the passenger is unsure where it was lost. Zero results keep the claim open — newly recovered items may not be entered yet. Results never include private clues. Next: compare_possible_match once per foundItemId.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         description: {
           type: "string",
@@ -137,6 +152,7 @@ const tools: ToolDefinition[] = [
       "Optional public details for one found item (no ownership clues). Usually skip this and use compare_possible_match after search.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         foundItemId: {
           type: "string",
@@ -157,6 +173,7 @@ const tools: ToolDefinition[] = [
       "Score one candidate (strong_match / partial_match / unlikely / reject). Call once per search hit before ownership. Claimed or unavailable items are rejected. After all candidates, continue with a strong_match, or the best partial_match. Do not skip to verify_ownership.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         recoveryCaseId: { type: "string", description: "Claim id" },
         foundItemId: {
@@ -174,6 +191,7 @@ const tools: ToolDefinition[] = [
       "Start the ownership challenge for the best compared candidate (prefer strong_match). Returns a prompt — ask the passenger, wait, then call verify_ownership with their words. Do not invent or reveal clues. Pass foundItemId when selecting a candidate.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         recoveryCaseId: { type: "string", description: "Claim id" },
         foundItemId: {
@@ -192,6 +210,7 @@ const tools: ToolDefinition[] = [
       "Submit the passenger's private detail after request_ownership_evidence. Use only what they said. On success, call prepare_recovery_request next. On failure, ask again (attempts are limited, then review). Do not authorize after a failed verify.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         recoveryCaseId: { type: "string", description: "Claim id" },
         foundItemId: {
@@ -214,6 +233,7 @@ const tools: ToolDefinition[] = [
       "Build pickup details after ownership is verified. Show the packet and ask for explicit approval. Only then call authorize_recovery with humanConfirmed=true. Safe to call again if a packet already exists.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         recoveryCaseId: { type: "string", description: "Claim id" },
       },
@@ -227,6 +247,7 @@ const tools: ToolDefinition[] = [
       "Authorize pickup only after prepare_recovery_request and explicit passenger approval. Requires ownershipVerified, a prepared packet, and humanConfirmed=true. Never set humanConfirmed yourself. On error, call get_recovery_status and continue from the required step.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         recoveryCaseId: { type: "string", description: "Claim id" },
         humanConfirmed: {
@@ -245,6 +266,7 @@ const tools: ToolDefinition[] = [
       "Read claim state, checklist, selected item, comparisons, packet, and recent activity. Use to resume a claim, recover from errors, or decide the next step. Prefer this over creating a new case when recoveryCaseId already exists.",
     inputSchema: {
       type: "object",
+      additionalProperties: false,
       properties: {
         recoveryCaseId: { type: "string", description: "Claim id" },
       },
