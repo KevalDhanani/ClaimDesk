@@ -84,6 +84,9 @@ export interface RecoveryCase {
   destination: string;
   itemDescription: string;
   lastKnownLocation: string | null;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
   status: CaseStatus;
   candidateIds: string[];
   comparisons: MatchComparison[];
@@ -92,6 +95,10 @@ export interface RecoveryCase {
   recoveryPrepared: boolean;
   recoveryAuthorized: boolean;
   recoveryPacket: RecoveryPacket | null;
+  /** Failed verify_ownership attempts for the current investigation. */
+  ownershipFailCount?: number;
+  /** After too many failed attempts, further verification is paused for review. */
+  ownershipLocked?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -113,6 +120,9 @@ export interface CreateCaseInput {
   destination: string;
   itemDescription: string;
   lastKnownLocation?: string;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
   actor?: "human" | "agent";
 }
 

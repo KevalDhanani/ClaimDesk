@@ -25,7 +25,7 @@ export function SiteFooter() {
                 </Link>
               </li>
               <li>
-                <Link href="/#claims" className="hover:text-white">
+                <Link href="/claims" className="hover:text-white">
                   My claims
                 </Link>
               </li>
@@ -51,7 +51,17 @@ export function SiteFooter() {
       <div className="border-t border-white/10">
         <div className="shell flex flex-col gap-2 py-4 text-[11px] text-white/45 sm:flex-row sm:justify-between">
           <p>© {new Date().getFullYear()} AeroOne Airlines. All rights reserved.</p>
-          <p>Official passenger lost property service</p>
+          <p>
+            Illustration{" "}
+            <a
+              href="https://www.vecteezy.com/free-vector/airplane"
+              className="underline decoration-white/25 underline-offset-2 hover:text-white/70"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Airplane Vectors by Vecteezy
+            </a>
+          </p>
         </div>
       </div>
     </footer>

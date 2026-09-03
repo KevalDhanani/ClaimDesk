@@ -24,6 +24,7 @@ export const recoveryApi = {
       activities: import("@/lib/domain/types").Activity[];
       candidates: import("@/lib/domain/types").FoundItemPublic[];
       selectedItem: import("@/lib/domain/types").FoundItemPublic | null;
+      investigationSteps: import("@/lib/domain/investigation").InvestigationStep[];
     }>(`/api/recovery/cases/${id}`),
   createCase: (body: Record<string, unknown>) =>
     api<{ recoveryCaseId: string; status: string }>("/api/recovery/create-case", {
@@ -31,7 +32,13 @@ export const recoveryApi = {
       body: JSON.stringify(body),
     }),
   search: (body: Record<string, unknown>) =>
-    api<{ results: Array<Record<string, unknown>> }>("/api/recovery/search", {
+    api<{
+      results: Array<Record<string, unknown>>;
+      resultCount?: number;
+      monitoring?: boolean;
+      message?: string;
+      unavailableSkipped?: number;
+    }>("/api/recovery/search", {
       method: "POST",
       body: JSON.stringify(body),
     }),
@@ -46,7 +53,12 @@ export const recoveryApi = {
       body: JSON.stringify(body),
     }),
   verifyOwnership: (body: Record<string, unknown>) =>
-    api<{ verified: boolean; message: string }>("/api/recovery/verify-ownership", {
+    api<{
+      verified: boolean;
+      message: string;
+      ownershipLocked?: boolean;
+      attemptsRemaining?: number;
+    }>("/api/recovery/verify-ownership", {
       method: "POST",
       body: JSON.stringify(body),
     }),

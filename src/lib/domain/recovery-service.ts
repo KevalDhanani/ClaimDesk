@@ -1,4 +1,10 @@
 import { evidenceMatches, ownershipChallengePrompt } from "./evidence";
+import {
+  buildInvestigationSteps,
+  isRecoverableItem,
+  MAX_OWNERSHIP_ATTEMPTS,
+  unavailableReason,
+} from "./investigation";
 import { scoreMatch } from "./match-scoring";
 import { assertTransition } from "./status-machine";
 import type {
@@ -27,7 +33,6 @@ function normalize(text: string): string {
 }
 
 function stripItem(item: FoundItemPublic): FoundItemPublic {
-  // Ensure no accidental secret fields
   return {
     id: item.id,
     description: item.description,
@@ -103,22 +108,34 @@ export class RecoveryService {
       selectedItem = item ? stripItem(item) : null;
     }
 
-    return { recoveryCase, activities, candidates, selectedItem };
+    return {
+      recoveryCase,
+      activities,
+      candidates,
+      selectedItem,
+      investigationSteps: buildInvestigationSteps(recoveryCase, activities),
+    };
   }
 
   async createRecoveryCase(input: CreateCaseInput): Promise<RecoveryCase> {
     const store = await getReadyStore();
     const actor = input.actor ?? "human";
     const timestamp = nowIso();
+    const flightNumber = input.flightNumber.toUpperCase();
+    const knownFlight = await store.getFlightByNumber(flightNumber, input.travelDate);
+
     const recoveryCase: RecoveryCase = {
       id: generateId("RC"),
       passengerId: DEMO_PASSENGER_ID,
-      flightNumber: input.flightNumber.toUpperCase(),
+      flightNumber,
       travelDate: input.travelDate,
       origin: input.origin,
       destination: input.destination,
       itemDescription: input.itemDescription,
       lastKnownLocation: input.lastKnownLocation ?? null,
+      contactName: input.contactName,
+      contactEmail: input.contactEmail,
+      contactPhone: input.contactPhone,
       status: "investigating",
       candidateIds: [],
       comparisons: [],
@@ -127,6 +144,8 @@ export class RecoveryService {
       recoveryPrepared: false,
       recoveryAuthorized: false,
       recoveryPacket: null,
+      ownershipFailCount: 0,
+      ownershipLocked: false,
       createdAt: timestamp,
       updatedAt: timestamp,
     };
@@ -141,10 +160,34 @@ export class RecoveryService {
         travelDate: recoveryCase.travelDate,
       }
     );
+
+    if (knownFlight) {
+      await logActivity(
+        recoveryCase.id,
+        "flight_looked_up",
+        `Confirmed flight ${knownFlight.flightNumber} ${knownFlight.origin} → ${knownFlight.destination} on ${knownFlight.date}.`,
+        actor,
+        { flightId: knownFlight.id }
+      );
+    } else {
+      await logActivity(
+        recoveryCase.id,
+        "note",
+        `Flight ${flightNumber} on ${input.travelDate} was not found in the current schedule. Claim kept open — confirm the flight number or route if needed.`,
+        actor,
+        { flightNumber, travelDate: input.travelDate, flightConfirmed: false }
+      );
+    }
+
     return recoveryCase;
   }
 
-  async getFlightDetails(flightNumber: string, date?: string, recoveryCaseId?: string, actor: Activity["actor"] = "agent") {
+  async getFlightDetails(
+    flightNumber: string,
+    date?: string,
+    recoveryCaseId?: string,
+    actor: Activity["actor"] = "agent"
+  ) {
     const store = await getReadyStore();
     const flight = await store.getFlightByNumber(flightNumber, date);
     if (!flight) {
@@ -184,6 +227,9 @@ export class RecoveryService {
       results = results.filter((i) => i.custodyDomain === input.custodyDomain);
     }
 
+    const unavailableHits = results.filter((i) => !isRecoverableItem(i));
+    results = results.filter((i) => isRecoverableItem(i));
+
     if (input.flightNumber) {
       const fn = input.flightNumber.toUpperCase();
       results = results
@@ -198,14 +244,22 @@ export class RecoveryService {
     if (input.location) {
       const loc = normalize(input.location);
       results = [...results].sort((a, b) => {
-        const aHit = normalize(a.foundLocation).includes(loc) || a.custodyDomain.includes(loc as never) ? 1 : 0;
-        const bHit = normalize(b.foundLocation).includes(loc) || b.custodyDomain.includes(loc as never) ? 1 : 0;
+        const aHit =
+          normalize(a.foundLocation).includes(loc) ||
+          a.custodyDomain.includes(loc as never)
+            ? 1
+            : 0;
+        const bHit =
+          normalize(b.foundLocation).includes(loc) ||
+          b.custodyDomain.includes(loc as never)
+            ? 1
+            : 0;
         return bHit - aHit;
       });
     }
 
-    // Keep result sets manageable for the claim UI
     const limited = results.slice(0, 12).map(stripItem);
+    let caseMessage: string | null = null;
 
     if (input.recoveryCaseId) {
       const recoveryCase = await this.getCase(input.recoveryCaseId);
@@ -213,22 +267,34 @@ export class RecoveryService {
         new Set([...recoveryCase.candidateIds, ...limited.map((i) => i.id)])
       );
       recoveryCase.candidateIds = merged;
-      if (recoveryCase.status === "investigating" || recoveryCase.status === "draft") {
-        assertTransition(recoveryCase.status, "candidates_found");
-        recoveryCase.status = "candidates_found";
+
+      if (limited.length > 0) {
+        if (recoveryCase.status === "investigating" || recoveryCase.status === "draft") {
+          assertTransition(recoveryCase.status, "candidates_found");
+          recoveryCase.status = "candidates_found";
+        }
+        caseMessage = `Searched found items for “${input.description}”${
+          input.custodyDomain ? ` (${input.custodyDomain})` : ""
+        }. ${limited.length} available match(es) found.`;
+      } else {
+        caseMessage =
+          `No matching available items currently registered for “${input.description}”. ` +
+          `That doesn’t necessarily mean it hasn’t been found — newly recovered items may not be entered yet. ` +
+          `Claim kept open so you can search again later.`;
+        if (unavailableHits.length > 0) {
+          caseMessage += ` (${unavailableHits.length} similar record(s) were already claimed or unavailable.)`;
+        }
       }
+
       recoveryCase.updatedAt = nowIso();
       await store.saveCase(recoveryCase);
-      await logActivity(
-        recoveryCase.id,
-        "search_performed",
-        `Searched found items for “${input.description}”${input.custodyDomain ? ` (${input.custodyDomain})` : ""}. ${limited.length} possible match(es) found.`,
-        actor,
-        {
-          resultIds: limited.map((i) => i.id),
-          custodyDomain: input.custodyDomain ?? "all",
-        }
-      );
+      await logActivity(recoveryCase.id, "search_performed", caseMessage, actor, {
+        resultIds: limited.map((i) => i.id),
+        resultCount: limited.length,
+        unavailableCount: unavailableHits.length,
+        custodyDomain: input.custodyDomain ?? "all",
+        monitoring: limited.length === 0,
+      });
     }
 
     return {
@@ -251,10 +317,22 @@ export class RecoveryService {
             ? "flight mismatch"
             : item.custodyDomain,
       })),
+      resultCount: limited.length,
+      unavailableSkipped: unavailableHits.length,
+      monitoring: limited.length === 0,
+      message:
+        caseMessage ??
+        (limited.length === 0
+          ? "No matching available items in current inventory. Newly recovered items may not be entered yet."
+          : `${limited.length} available match(es) found.`),
     };
   }
 
-  async getItemDetails(foundItemId: string, recoveryCaseId?: string, actor: Activity["actor"] = "agent") {
+  async getItemDetails(
+    foundItemId: string,
+    recoveryCaseId?: string,
+    actor: Activity["actor"] = "agent"
+  ) {
     const store = await getReadyStore();
     const item = await store.getFoundItem(foundItemId);
     if (!item) throw new Error(`Found item not found: ${foundItemId}`);
@@ -264,10 +342,20 @@ export class RecoveryService {
         "item_inspected",
         `Viewed details for ${item.description} (${item.id}), held by ${item.custodyOwner}.`,
         actor,
-        { foundItemId: item.id, custodyDomain: item.custodyDomain }
+        {
+          foundItemId: item.id,
+          custodyDomain: item.custodyDomain,
+          status: item.status,
+        }
       );
     }
-    return stripItem(item);
+    return {
+      ...stripItem(item),
+      recoverable: isRecoverableItem(item),
+      unavailableReason: isRecoverableItem(item)
+        ? null
+        : unavailableReason(item.status),
+    };
   }
 
   async comparePossibleMatch(input: CompareMatchInput) {
@@ -277,7 +365,17 @@ export class RecoveryService {
     const item = await store.getFoundItem(input.foundItemId);
     if (!item) throw new Error(`Found item not found: ${input.foundItemId}`);
 
-    const scored = scoreMatch(recoveryCase, item);
+    let scored = scoreMatch(recoveryCase, item);
+    if (!isRecoverableItem(item)) {
+      const reason = unavailableReason(item.status);
+      scored = {
+        score: 0,
+        reasons: [],
+        rejectionReasons: [reason, ...scored.rejectionReasons],
+        recommendation: "reject",
+      };
+    }
+
     const comparison: MatchComparison = {
       foundItemId: item.id,
       score: scored.score,
@@ -323,12 +421,14 @@ export class RecoveryService {
         recommendation: scored.recommendation,
         reasons: scored.reasons,
         rejectionReasons: scored.rejectionReasons,
+        recoverable: isRecoverableItem(item),
       }
     );
 
     return {
       ...comparison,
       item: stripItem(item),
+      recoverable: isRecoverableItem(item),
     };
   }
 
@@ -336,13 +436,25 @@ export class RecoveryService {
     const store = await getReadyStore();
     const actor = input.actor ?? "agent";
     const recoveryCase = await this.getCase(input.recoveryCaseId);
+
+    if (recoveryCase.ownershipLocked) {
+      throw new Error(
+        "Ownership verification is paused after several unsuccessful attempts. This claim is flagged for manual review."
+      );
+    }
+
     const foundItemId =
       input.foundItemId ?? recoveryCase.selectedFoundItemId ?? undefined;
     if (!foundItemId) {
-      throw new Error("Select or provide a foundItemId before requesting ownership evidence.");
+      throw new Error(
+        "Select or provide a foundItemId before requesting ownership evidence."
+      );
     }
     const item = await store.getFoundItem(foundItemId);
     if (!item) throw new Error(`Found item not found: ${foundItemId}`);
+    if (!isRecoverableItem(item)) {
+      throw new Error(unavailableReason(item.status));
+    }
 
     recoveryCase.selectedFoundItemId = foundItemId;
     assertTransition(recoveryCase.status, "ownership_pending");
@@ -366,6 +478,10 @@ export class RecoveryService {
       itemSummary: `${item.description} (${item.color}) — ${item.foundLocation}`,
       custodyDomain: item.custodyDomain,
       ...challenge,
+      attemptsRemaining: Math.max(
+        0,
+        MAX_OWNERSHIP_ATTEMPTS - (recoveryCase.ownershipFailCount ?? 0)
+      ),
       warning:
         "Do not reveal or invent restricted ownership evidence. Only the passenger should supply a private detail.",
     };
@@ -378,6 +494,20 @@ export class RecoveryService {
     const item = await store.getFoundItem(input.foundItemId);
     if (!item) throw new Error(`Found item not found: ${input.foundItemId}`);
 
+    if (recoveryCase.ownershipLocked) {
+      return {
+        verified: false as const,
+        message:
+          "Ownership verification is paused after several unsuccessful attempts. This claim is flagged for manual review.",
+        ownershipLocked: true,
+        attemptsRemaining: 0,
+      };
+    }
+
+    if (!isRecoverableItem(item)) {
+      throw new Error(unavailableReason(item.status));
+    }
+
     const secrets = await store.getFoundItemSecrets(input.foundItemId);
     if (!secrets?.clues?.length) {
       throw new Error("No ownership evidence protocol is configured for this item.");
@@ -385,21 +515,38 @@ export class RecoveryService {
 
     const matched = evidenceMatches(input.evidence, secrets.clues);
     if (!matched) {
+      const failCount = (recoveryCase.ownershipFailCount ?? 0) + 1;
+      recoveryCase.ownershipFailCount = failCount;
+      const locked = failCount >= MAX_OWNERSHIP_ATTEMPTS;
+      recoveryCase.ownershipLocked = locked;
+      recoveryCase.updatedAt = nowIso();
+      await store.saveCase(recoveryCase);
+
+      const attemptsRemaining = Math.max(0, MAX_OWNERSHIP_ATTEMPTS - failCount);
       await logActivity(
         recoveryCase.id,
         "ownership_failed",
-        `Ownership could not be confirmed for ${item.description}. Another detail may be needed.`,
+        locked
+          ? `Ownership could not be confirmed after ${failCount} attempts. Claim flagged for manual review.`
+          : `Ownership could not be confirmed for ${item.description}. ${attemptsRemaining} attempt(s) remaining.`,
         actor,
-        { foundItemId: input.foundItemId }
+        { foundItemId: input.foundItemId, failCount, ownershipLocked: locked }
       );
+
       return {
         verified: false as const,
-        message:
-          "That detail didn’t match our records for this item. Please try another identifying detail only the owner would know.",
+        message: locked
+          ? "That detail didn’t match, and the maximum number of attempts was reached. This claim is flagged for manual review — we won’t authorize pickup from this check."
+          : "That detail didn’t match our records for this item. Please try another identifying detail only the owner would know.",
+        ownershipLocked: locked,
+        attemptsRemaining,
+        failCount,
       };
     }
 
     recoveryCase.selectedFoundItemId = input.foundItemId;
+    recoveryCase.ownershipFailCount = 0;
+    recoveryCase.ownershipLocked = false;
     assertTransition(recoveryCase.status, "ownership_verified");
     recoveryCase.status = "ownership_verified";
     recoveryCase.ownershipVerified = true;
@@ -419,6 +566,8 @@ export class RecoveryService {
       message: "Ownership confirmed. You can prepare pickup details next.",
       recoveryCaseId: recoveryCase.id,
       foundItemId: input.foundItemId,
+      ownershipLocked: false,
+      attemptsRemaining: MAX_OWNERSHIP_ATTEMPTS,
     };
   }
 
@@ -433,8 +582,31 @@ export class RecoveryService {
       );
     }
 
+    if (recoveryCase.ownershipLocked) {
+      throw new Error(
+        "Cannot prepare recovery: ownership verification is locked for review."
+      );
+    }
+
     const item = await store.getFoundItem(recoveryCase.selectedFoundItemId);
     if (!item) throw new Error("Selected found item no longer exists.");
+    if (!isRecoverableItem(item)) {
+      throw new Error(unavailableReason(item.status));
+    }
+
+    if (
+      recoveryCase.recoveryPrepared &&
+      recoveryCase.recoveryPacket &&
+      recoveryCase.recoveryPacket.foundItemId === item.id
+    ) {
+      return {
+        recoveryCaseId: recoveryCase.id,
+        packet: recoveryCase.recoveryPacket,
+        alreadyPrepared: true,
+        nextStep:
+          "Ask the passenger to review the pickup details and explicitly approve before calling authorize_recovery.",
+      };
+    }
 
     const pickupLocation =
       item.custodyDomain === "aircraft"
@@ -447,7 +619,8 @@ export class RecoveryService {
       itemSummary: `${item.description} (${item.color}${item.brand ? `, ${item.brand}` : ""})`,
       custodyOwner: item.custodyOwner,
       pickupLocation,
-      pickupHours: "Daily 08:00–20:00 IST — bring photo ID matching the booking passenger",
+      pickupHours:
+        "Daily 08:00–20:00 IST — bring photo ID matching the booking passenger",
       instructions: [
         "Bring this pickup confirmation and government photo ID to the desk.",
         `Reference claim ${recoveryCase.id} and item ${item.id}.`,
@@ -475,6 +648,7 @@ export class RecoveryService {
     return {
       recoveryCaseId: recoveryCase.id,
       packet,
+      alreadyPrepared: false,
       nextStep:
         "Ask the passenger to review the pickup details and explicitly approve before calling authorize_recovery.",
     };
@@ -488,6 +662,11 @@ export class RecoveryService {
     if (!recoveryCase.ownershipVerified) {
       throw new Error("Cannot confirm pickup: ownership is not confirmed.");
     }
+    if (recoveryCase.ownershipLocked) {
+      throw new Error(
+        "Cannot confirm pickup: ownership verification is locked for review."
+      );
+    }
     if (!recoveryCase.recoveryPrepared || !recoveryCase.recoveryPacket) {
       throw new Error("Cannot confirm pickup: pickup details have not been prepared.");
     }
@@ -495,6 +674,11 @@ export class RecoveryService {
       throw new Error(
         "Passenger confirmation required. Set humanConfirmed=true only after they explicitly approve pickup."
       );
+    }
+
+    const item = await store.getFoundItem(recoveryCase.recoveryPacket.foundItemId);
+    if (item && !isRecoverableItem(item)) {
+      throw new Error(unavailableReason(item.status));
     }
 
     assertTransition(recoveryCase.status, "recovery_authorized");
@@ -539,9 +723,12 @@ export class RecoveryService {
       ownershipVerified: bundle.recoveryCase.ownershipVerified,
       recoveryPrepared: bundle.recoveryCase.recoveryPrepared,
       recoveryAuthorized: bundle.recoveryCase.recoveryAuthorized,
+      ownershipFailCount: bundle.recoveryCase.ownershipFailCount ?? 0,
+      ownershipLocked: Boolean(bundle.recoveryCase.ownershipLocked),
       selectedFoundItemId: bundle.recoveryCase.selectedFoundItemId,
       packet: bundle.recoveryCase.recoveryPacket,
       comparisons: bundle.recoveryCase.comparisons,
+      investigationSteps: bundle.investigationSteps,
       recentActivity: bundle.activities.slice(-8),
       selectedItem: bundle.selectedItem,
     };

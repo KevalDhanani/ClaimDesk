@@ -73,7 +73,7 @@ Use this section when changing look & feel so the product stays passenger-real �
 - Key information strip (cabin/airport, ownership, hours, retention)
 - How it works: Match → Confirm → Collect
 - Footer: full AeroOne facility-style footer
-- **My claims** → `/#claims`
+- **My claims** → `/claims`
 
 ### Icons
 
@@ -88,10 +88,41 @@ Inline SVGs in `src/components/Icons.tsx` (plane, search, shield, desk, luggage,
 
 ## Golden demo path (operators only — not shown in UI)
 
-1. Open the app in ChatGPT’s in-app browser or Chrome with WebMCP enabled.
-2. Prompt: lost black backpack on AO-123 (2026-09-01), Mumbai → Delhi, unsure aircraft vs airport.
-3. Ownership detail: **small red keychain**
-4. Approve pickup when asked.
+1. Optionally clear Firestore (`flights`, `foundItems`, `recoveryCases`, `activities`).
+2. Seed inventory:
+
+```bash
+npm run seed
+```
+
+Writes **6 flights** + **FI-1001–1006** (does not delete existing claims unless you cleared them).
+
+3. Open the app in ChatGPT’s in-app browser or Chrome with WebMCP enabled.
+4. Prompt: lost black backpack on AO-123 (2026-09-01), Mumbai → Delhi, unsure aircraft vs airport.
+5. Expect compare: **FI-1001** reject · **FI-1002** partial · **FI-1003** strong.
+6. Ownership detail: **small red keychain**
+7. Approve pickup when asked.
+
+### Seed inventory (after `npm run seed`)
+
+| ID | Role |
+|---|---|
+| FI-1001 | Decoy — wrong flight (AO-315) |
+| FI-1002 | Partial — same flight, airport desk |
+| FI-1003 | Strong — aircraft cabin + red keychain secret |
+| FI-1004 | Claimed — filtered out of recoverable search |
+| FI-1005 | Phone — keeps “silver watch” no-match demos clean |
+| FI-1006 | In transit — filtered out of recoverable search |
+
+### Demo beats this seed supports
+
+1. Happy path + multi-match → verify → prepare → authorize  
+2. Wrong evidence (“blue keychain”) then correct (“small red keychain”)  
+3. No match (“silver watch”) — claim stays open  
+4. Claimed / in_transit items never offered as recoverable  
+5. Missing flight (AO-999) — claim can open with a schedule note  
+
+Seed upserts flights/items only; clear the DB manually first for a fully clean slate.
 
 ## WebMCP tools
 

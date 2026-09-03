@@ -30,38 +30,71 @@ async function callToolApi(path: string, input: Record<string, unknown>) {
   return data;
 }
 
+/**
+ * Typical investigation order (soft guidance — server enforces security gates):
+ * create_recovery_case → get_flight_details → search_found_items →
+ * compare_possible_match (each candidate) → request_ownership_evidence →
+ * (ask passenger; wait) → verify_ownership → prepare_recovery_request →
+ * (ask approval; wait) → authorize_recovery.
+ * Use get_recovery_status to resume or recover after errors — do not create duplicate cases.
+ */
 const tools: ToolDefinition[] = [
   {
     name: "create_recovery_case",
     description:
-      "Open a new lost-property recovery investigation for a passenger. Use when the passenger describes a lost item and travel details. Returns a recoveryCaseId used by later tools.",
+      "Open a NEW lost-property claim when the passenger describes a lost item and travel details. Returns recoveryCaseId required by later tools. Typical next steps: get_flight_details (pass recoveryCaseId), then search_found_items with recoveryCaseId + flightNumber + date, then compare each candidate, then ownership → prepare → human authorize. If a claim already exists for this passenger/item, call get_recovery_status instead of creating another case. If the flight is not in the schedule, the claim is still created and noted — ask the passenger to confirm flight details.",
     inputSchema: {
       type: "object",
       properties: {
-        flightNumber: { type: "string", description: "Airline flight number, e.g. AO-123" },
-        travelDate: { type: "string", description: "Travel date YYYY-MM-DD" },
-        origin: { type: "string" },
-        destination: { type: "string" },
-        itemDescription: { type: "string", description: "What was lost" },
+        flightNumber: {
+          type: "string",
+          description: "Airline flight number, e.g. AO-123",
+        },
+        travelDate: {
+          type: "string",
+          description: "Travel date YYYY-MM-DD",
+        },
+        origin: { type: "string", description: "Departure city/airport" },
+        destination: { type: "string", description: "Arrival city/airport" },
+        itemDescription: {
+          type: "string",
+          description: "What was lost, e.g. black backpack",
+        },
         lastKnownLocation: {
           type: "string",
-          description: "Optional: aircraft, gate, airport, etc.",
+          description:
+            "Optional: aircraft, seat, gate, airport, baggage claim, or unknown",
         },
       },
-      required: ["flightNumber", "travelDate", "origin", "destination", "itemDescription"],
+      required: [
+        "flightNumber",
+        "travelDate",
+        "origin",
+        "destination",
+        "itemDescription",
+      ],
     },
     execute: (input) => callToolApi("/api/recovery/create-case", input),
   },
   {
     name: "get_flight_details",
     description:
-      "Look up AeroOne flight details (route, aircraft, terminal, gate). Use early in an investigation to ground custody search. Pass recoveryCaseId when available so the case timeline records the lookup.",
+      "Look up AeroOne flight details (route, aircraft, terminal, gate). Call early after create_recovery_case to ground the investigation. Always pass recoveryCaseId when you have one so the claim timeline records the lookup. If the flight is missing, ask the passenger to confirm the number, date, or route — do not invent a flight.",
     inputSchema: {
       type: "object",
       properties: {
-        flightNumber: { type: "string" },
-        date: { type: "string" },
-        recoveryCaseId: { type: "string" },
+        flightNumber: {
+          type: "string",
+          description: "Flight number, e.g. AO-123",
+        },
+        date: {
+          type: "string",
+          description: "Travel date YYYY-MM-DD when known",
+        },
+        recoveryCaseId: {
+          type: "string",
+          description: "Existing claim id so the lookup is logged on the case",
+        },
       },
       required: ["flightNumber"],
     },
@@ -70,19 +103,37 @@ const tools: ToolDefinition[] = [
   {
     name: "search_found_items",
     description:
-      "Search found-property inventory across custody domains (aircraft, airport lost & found, terminal/gate). When the passenger is unsure where the item was lost, search without restricting custodyDomain, then compare candidates. Pass recoveryCaseId to attach results to the investigation. Never expect private ownership clues in results.",
+      "Search available (unclaimed) found-property inventory across custody domains. Always pass recoveryCaseId when a claim exists so results attach to the investigation. Prefer also passing flightNumber and date from the case. If the passenger is unsure where the item was lost, omit custodyDomain (search all), then compare candidates. When zero results: keep the case open — newly recovered items may not be entered yet; tell the passenger they can search again later. Never expect private ownership clues in results. Next: compare_possible_match once per returned foundItemId.",
     inputSchema: {
       type: "object",
       properties: {
-        description: { type: "string" },
-        flightNumber: { type: "string" },
-        date: { type: "string" },
-        location: { type: "string" },
+        description: {
+          type: "string",
+          description: "Item description to match, usually from the claim",
+        },
+        flightNumber: {
+          type: "string",
+          description: "Strongly recommended when known — boosts same-flight hits",
+        },
+        date: {
+          type: "string",
+          description: "Travel/found date YYYY-MM-DD when known",
+        },
+        location: {
+          type: "string",
+          description: "Optional free-text location hint",
+        },
         custodyDomain: {
           type: "string",
           enum: ["aircraft", "airport_lnf", "terminal_gate"],
+          description:
+            "Optional filter. Omit when the passenger is unsure where it was lost.",
         },
-        recoveryCaseId: { type: "string" },
+        recoveryCaseId: {
+          type: "string",
+          description:
+            "Strongly recommended — attaches search results to the claim timeline",
+        },
       },
       required: ["description"],
     },
@@ -91,12 +142,18 @@ const tools: ToolDefinition[] = [
   {
     name: "get_item_details",
     description:
-      "Fetch public details for a found item. Restricted ownership evidence is never returned. Use after search to inspect a candidate.",
+      "Optional. Fetch public details for one found item (no restricted ownership evidence). Usually compare_possible_match is enough after search; use this only if you need a closer look at a single candidate before or after comparing.",
     inputSchema: {
       type: "object",
       properties: {
-        foundItemId: { type: "string" },
-        recoveryCaseId: { type: "string" },
+        foundItemId: {
+          type: "string",
+          description: "Found item id from search results, e.g. FI-1003",
+        },
+        recoveryCaseId: {
+          type: "string",
+          description: "Optional — logs the inspection on the claim timeline",
+        },
       },
       required: ["foundItemId"],
     },
@@ -105,12 +162,15 @@ const tools: ToolDefinition[] = [
   {
     name: "compare_possible_match",
     description:
-      "Score a candidate against the recovery case with deterministic reasons and rejectionReasons. Use to eliminate decoys and identify strong matches. Prefer comparing multiple candidates before requesting ownership evidence.",
+      "Score one candidate against the claim with deterministic reasons, rejectionReasons, and recommendation (strong_match / partial_match / unlikely / reject). Call once per search hit before requesting ownership evidence. Claimed or unavailable items are rejected. After comparing all candidates, proceed only with a strong_match, or the best partial_match if none are strong. Do not skip straight to verify_ownership.",
     inputSchema: {
       type: "object",
       properties: {
-        recoveryCaseId: { type: "string" },
-        foundItemId: { type: "string" },
+        recoveryCaseId: { type: "string", description: "Claim id" },
+        foundItemId: {
+          type: "string",
+          description: "Candidate found item id to score",
+        },
       },
       required: ["recoveryCaseId", "foundItemId"],
     },
@@ -119,12 +179,16 @@ const tools: ToolDefinition[] = [
   {
     name: "request_ownership_evidence",
     description:
-      "Start the ownership challenge protocol for a strong candidate. Returns a prompt asking the passenger for a private identifying detail. Do NOT invent or reveal restricted evidence. After the passenger answers, call verify_ownership.",
+      "Start the ownership challenge for the best compared candidate (prefer strong_match). Returns a passenger-facing prompt for a private identifying detail. Do NOT invent, guess, or reveal restricted evidence. Ask the passenger the returned prompt, WAIT for their answer, then call verify_ownership with their words. Pass foundItemId when selecting a specific candidate.",
     inputSchema: {
       type: "object",
       properties: {
-        recoveryCaseId: { type: "string" },
-        foundItemId: { type: "string" },
+        recoveryCaseId: { type: "string", description: "Claim id" },
+        foundItemId: {
+          type: "string",
+          description:
+            "Optional candidate id; defaults to the case’s selected strong/partial match",
+        },
       },
       required: ["recoveryCaseId"],
     },
@@ -133,15 +197,19 @@ const tools: ToolDefinition[] = [
   {
     name: "verify_ownership",
     description:
-      "Submit the passenger's private identifying detail for server-side verification against restricted evidence. On success, prepare a recovery request. On failure, ask for another detail. Never claim to know the restricted clues.",
+      "Submit the passenger’s private identifying detail for server-side verification. Call only after request_ownership_evidence and only with what the passenger actually said — never invent clues. On success: next call prepare_recovery_request (verification does not prepare pickup automatically). On failure: ask for another detail (attempts are limited; then manual review). Do not call authorize_recovery after a failed verify.",
     inputSchema: {
       type: "object",
       properties: {
-        recoveryCaseId: { type: "string" },
-        foundItemId: { type: "string" },
+        recoveryCaseId: { type: "string", description: "Claim id" },
+        foundItemId: {
+          type: "string",
+          description: "Same found item id used in the ownership challenge",
+        },
         evidence: {
           type: "string",
-          description: "Passenger-provided private detail",
+          description:
+            "Exact private detail supplied by the passenger (e.g. small red keychain)",
         },
       },
       required: ["recoveryCaseId", "foundItemId", "evidence"],
@@ -151,11 +219,11 @@ const tools: ToolDefinition[] = [
   {
     name: "prepare_recovery_request",
     description:
-      "Build a human-readable recovery packet (pickup desk, hours, instructions) after ownership is verified. Do not authorize yet — present the packet and ask the human for explicit approval.",
+      "Build the pickup packet (desk, hours, instructions) after ownershipVerified is true. Call this after successful verify_ownership. Do NOT authorize yet: present the packet to the passenger and ask for explicit approval. Only after they clearly approve, call authorize_recovery with humanConfirmed=true. Safe to call again if a packet already exists for the same item.",
     inputSchema: {
       type: "object",
       properties: {
-        recoveryCaseId: { type: "string" },
+        recoveryCaseId: { type: "string", description: "Claim id" },
       },
       required: ["recoveryCaseId"],
     },
@@ -164,14 +232,15 @@ const tools: ToolDefinition[] = [
   {
     name: "authorize_recovery",
     description:
-      "Authorize recovery ONLY after the human explicitly approves. Requires ownershipVerified, a prepared packet, and humanConfirmed=true. Never set humanConfirmed unless the passenger clearly said yes.",
+      "Final step: authorize pickup ONLY after prepare_recovery_request succeeded AND the passenger explicitly approved (e.g. yes / authorize / confirm pickup). Requires ownershipVerified, a prepared packet, and humanConfirmed=true. Never set humanConfirmed=true on your own initiative or because the passenger asked early. Wrong order returns an error — call get_recovery_status and continue from the required step.",
     inputSchema: {
       type: "object",
       properties: {
-        recoveryCaseId: { type: "string" },
+        recoveryCaseId: { type: "string", description: "Claim id" },
         humanConfirmed: {
           type: "boolean",
-          description: "Must be true only after explicit human approval",
+          description:
+            "Must be true only after the passenger’s explicit approval in this conversation",
         },
       },
       required: ["recoveryCaseId", "humanConfirmed"],
@@ -181,11 +250,11 @@ const tools: ToolDefinition[] = [
   {
     name: "get_recovery_status",
     description:
-      "Get the current investigation status, selected item, recovery packet, comparisons, and recent timeline for a case.",
+      "Read current claim state: status, investigationSteps checklist, selected item, comparisons, packet, ownership lock, and recent timeline. Use when resuming a claim, after a tool error, or when unsure what to do next. Prefer this over create_recovery_case if a recoveryCaseId already exists.",
     inputSchema: {
       type: "object",
       properties: {
-        recoveryCaseId: { type: "string" },
+        recoveryCaseId: { type: "string", description: "Claim id" },
       },
       required: ["recoveryCaseId"],
     },
@@ -195,7 +264,10 @@ const tools: ToolDefinition[] = [
 
 let registered = false;
 
-export async function registerWebMcpTools(): Promise<{ registered: number; available: boolean }> {
+export async function registerWebMcpTools(): Promise<{
+  registered: number;
+  available: boolean;
+}> {
   if (typeof document === "undefined") {
     return { registered: 0, available: false };
   }

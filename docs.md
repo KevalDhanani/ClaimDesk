@@ -4,9 +4,16 @@ Target: under 3 minutes.
 
 ## Setup
 
-1. `npm run dev` (or open the deployed URL)
-2. Open ClaimDesk in ChatGPT’s in-app browser (WebMCP) or Chrome with WebMCP enabled
-3. Keep the case file visible while the agent works
+1. Clear Firestore collections if you want a clean demo DB (`flights`, `foundItems`, `recoveryCases`, `activities`).
+2. Seed inventory:
+
+```bash
+npm run seed
+```
+
+3. `npm run dev` (or open the deployed URL)
+4. Open ClaimDesk in ChatGPT’s in-app browser (WebMCP) or Chrome with WebMCP enabled
+5. Keep the case file visible while the agent works
 
 ## Script
 
@@ -28,7 +35,11 @@ Prompt:
 
 > I lost my black backpack on AO-123 on 2026-09-01, Mumbai to Delhi. I'm not sure whether I left it on the aircraft or at the airport. Please investigate.
 
-Expect: create case → flight details → search across custody → compare FI-1001 (reject) / FI-1002 (partial) / FI-1003 (strong). Timeline updates live.
+Expect: create case → flight details → search across custody → compare FI-1001 (reject) / FI-1002 (partial) / FI-1003 (strong). Timeline updates live. (FI-1004 claimed is excluded from available results.)
+
+Optional beats:
+- Wrong evidence first (“blue keychain”) → fail → then “small red keychain”
+- No-match: “silver watch on AO-123” → claim stays open (no watch in seed)
 
 ### 1:25–1:50 — Ownership
 

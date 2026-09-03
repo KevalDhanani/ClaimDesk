@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { recoveryApi } from "@/lib/api/client";
+import type { InvestigationStep } from "@/lib/domain/investigation";
 import type { Activity, FoundItemPublic, RecoveryCase } from "@/lib/domain/types";
 
 /** Live case updates via backend API polling (no client Firebase). */
@@ -10,6 +11,9 @@ export function useCaseLive(caseId: string) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [candidates, setCandidates] = useState<FoundItemPublic[]>([]);
   const [selectedItem, setSelectedItem] = useState<FoundItemPublic | null>(null);
+  const [investigationSteps, setInvestigationSteps] = useState<InvestigationStep[]>(
+    []
+  );
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -20,6 +24,7 @@ export function useCaseLive(caseId: string) {
       setActivities(data.activities);
       setCandidates(data.candidates);
       setSelectedItem(data.selectedItem);
+      setInvestigationSteps(data.investigationSteps ?? []);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load case");
@@ -39,6 +44,7 @@ export function useCaseLive(caseId: string) {
     activities,
     candidates,
     selectedItem,
+    investigationSteps,
     error,
     loading,
     refresh,

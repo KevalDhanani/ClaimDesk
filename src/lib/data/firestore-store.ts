@@ -95,4 +95,19 @@ export class FirestoreStore implements DataStore {
     await this.db().collection("activities").doc(activity.id).set(activity);
     return activity;
   }
+
+  async upsertFlight(flight: Flight): Promise<void> {
+    await this.db().collection("flights").doc(flight.id).set(flight);
+  }
+
+  async upsertFoundItem(
+    item: FoundItemPublic,
+    secrets?: FoundItemSecret
+  ): Promise<void> {
+    const ref = this.db().collection("foundItems").doc(item.id);
+    await ref.set(item);
+    if (secrets) {
+      await ref.collection("secrets").doc("evidence").set(secrets);
+    }
+  }
 }

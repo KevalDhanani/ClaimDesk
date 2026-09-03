@@ -7,5 +7,7 @@ export function actorLabel(actor: Activity["actor"]): string {
 }
 
 export function recommendationLabel(value: string): string {
-  return value.replace(/_/g, " ");
+  return value
+    .replace(/_/g, " ")
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }

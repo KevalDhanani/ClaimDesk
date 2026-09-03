@@ -16,7 +16,15 @@ export default function ReportPage() {
     destination: "",
     itemDescription: "",
     lastKnownLocation: "",
+    contactName: "",
+    contactEmail: "",
+    contactPhone: "",
   });
+
+  function set(key: keyof typeof form) {
+    return (e: React.ChangeEvent<HTMLInputElement>) =>
+      setForm((f) => ({ ...f, [key]: e.target.value }));
+  }
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -26,6 +34,9 @@ export default function ReportPage() {
       const result = await recoveryApi.createCase({
         ...form,
         lastKnownLocation: form.lastKnownLocation || undefined,
+        contactName: form.contactName || undefined,
+        contactEmail: form.contactEmail || undefined,
+        contactPhone: form.contactPhone || undefined,
         actor: "human",
       });
       router.push(`/cases/${result.recoveryCaseId}`);
@@ -36,141 +47,193 @@ export default function ReportPage() {
   }
 
   return (
-    <div>
-      <section className="hero !min-h-0">
+    <div className="report-page">
+      {/* Hero */}
+      <section className="hero report-hero">
         <div className="hero-pattern" aria-hidden />
         <div className="hero-glow" aria-hidden />
-        <div className="shell relative py-10 sm:py-12">
+        <div className="shell relative z-10 py-10 sm:py-16">
           <Link href="/" className="text-sm text-white/70 hover:text-white">
             ← Back to home
           </Link>
           <h1 className="mt-4 text-3xl font-semibold tracking-tight text-white sm:text-4xl">
             Report a lost item
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-white/75 sm:text-base">
-            Tell us what you lost and which AeroOne flight you were on. After you
-            submit, open your claim to search found items and confirm a match.
+          <p className="mt-3 max-w-xl text-sm leading-relaxed text-white/70 sm:text-base">
+            Tell us what you lost and which AeroOne flight you were on.
           </p>
         </div>
       </section>
 
-      <div className="shell max-w-3xl py-10">
-        <form onSubmit={onSubmit} className="surface-lg overflow-hidden">
-          <div className="border-b border-[var(--border)] bg-[var(--bg-warm)] px-6 py-4">
-            <p className="text-sm font-semibold text-[var(--ink)]">
-              Lost item report
-            </p>
-            <p className="mt-1 text-xs text-[var(--ink-muted)]">
-              Fields marked required help us match cabin and airport inventory.
-            </p>
-          </div>
+      {/* Form — pulled up to overlap the hero fade */}
+      <div className="shell relative z-10 -mt-10 max-w-lg pb-16">
+        <form onSubmit={onSubmit} noValidate>
+          <div className="report-card overflow-hidden rounded-2xl">
 
-          <div className="space-y-8 p-6 sm:p-8">
-            <fieldset className="space-y-4">
-              <legend className="text-sm font-semibold text-[var(--accent)]">
-                Flight details
-              </legend>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="block space-y-1.5 sm:col-span-1">
-                  <span className="text-sm font-medium">Flight number *</span>
+            {/* Card header accent strip */}
+            <div className="h-1.5 w-full bg-[var(--navy-800)]" />
+
+            <div className="space-y-5 px-6 py-7 sm:px-8">
+
+              {/* Item description — most important, first */}
+              <div className="space-y-1.5">
+                <label className="block text-sm font-semibold text-[var(--ink)]">
+                  What did you lose? <span className="text-[var(--danger)]">*</span>
+                </label>
+                <input
+                  className="field"
+                  value={form.itemDescription}
+                  onChange={set("itemDescription")}
+                  required
+                  placeholder="e.g. black backpack, grey laptop bag, silver watch"
+                  autoFocus
+                />
+              </div>
+
+              {/* Flight + Date */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-[var(--ink)]">
+                    Flight number <span className="text-[var(--danger)]">*</span>
+                  </label>
                   <input
                     className="field"
                     value={form.flightNumber}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, flightNumber: e.target.value }))
-                    }
+                    onChange={set("flightNumber")}
                     required
                     placeholder="e.g. AO-123"
                     autoComplete="off"
                   />
-                </label>
-                <label className="block space-y-1.5">
-                  <span className="text-sm font-medium">Travel date *</span>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-[var(--ink)]">
+                    Travel date <span className="text-[var(--danger)]">*</span>
+                  </label>
                   <input
                     className="field"
                     type="date"
                     value={form.travelDate}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, travelDate: e.target.value }))
-                    }
+                    onChange={set("travelDate")}
                     required
                   />
-                </label>
-                <label className="block space-y-1.5">
-                  <span className="text-sm font-medium">From *</span>
+                </div>
+              </div>
+
+              {/* From + To */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-[var(--ink)]">
+                    From <span className="text-[var(--danger)]">*</span>
+                  </label>
                   <input
                     className="field"
                     value={form.origin}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, origin: e.target.value }))
-                    }
+                    onChange={set("origin")}
                     required
                     placeholder="e.g. Mumbai"
                   />
-                </label>
-                <label className="block space-y-1.5">
-                  <span className="text-sm font-medium">To *</span>
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-[var(--ink)]">
+                    To <span className="text-[var(--danger)]">*</span>
+                  </label>
                   <input
                     className="field"
                     value={form.destination}
-                    onChange={(e) =>
-                      setForm((f) => ({ ...f, destination: e.target.value }))
-                    }
+                    onChange={set("destination")}
                     required
                     placeholder="e.g. Delhi"
                   />
-                </label>
+                </div>
               </div>
-            </fieldset>
 
-            <fieldset className="space-y-4">
-              <legend className="text-sm font-semibold text-[var(--accent)]">
-                Item details
-              </legend>
-              <label className="block space-y-1.5">
-                <span className="text-sm font-medium">What did you lose? *</span>
-                <input
-                  className="field"
-                  value={form.itemDescription}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, itemDescription: e.target.value }))
-                  }
-                  required
-                  placeholder="e.g. black backpack"
-                />
-              </label>
-              <label className="block space-y-1.5">
-                <span className="text-sm font-medium">
-                  Where do you think you left it? (optional)
-                </span>
+              {/* Last known location */}
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-[var(--ink)]">
+                  Where do you think you left it?{" "}
+                  <span className="font-normal text-[var(--ink-subtle)]">(optional)</span>
+                </label>
                 <input
                   className="field"
                   value={form.lastKnownLocation}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, lastKnownLocation: e.target.value }))
-                  }
-                  placeholder="e.g. aircraft seat, gate area, baggage claim"
+                  onChange={set("lastKnownLocation")}
+                  placeholder="e.g. aircraft seat, gate area, baggage claim belt"
                 />
-              </label>
-            </fieldset>
+              </div>
 
-            {error && (
-              <p className="rounded-lg bg-[var(--danger-soft)] px-3 py-2 text-sm text-[var(--danger)]">
-                {error}
-              </p>
-            )}
+              {/* Divider */}
+              <div className="border-t border-[var(--border)]" />
 
-            <div className="flex flex-col gap-3 border-t border-[var(--border)] pt-6 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-[var(--ink-subtle)]">
-                After submit you’ll search found items on your claim page.
-              </p>
+              {/* Contact details */}
+              <div className="space-y-1">
+                <p className="text-sm font-semibold text-[var(--ink)]">Contact details</p>
+                <p className="text-xs text-[var(--ink-subtle)]">
+                  Optional — helps us notify you when a match is found.
+                </p>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="block text-sm font-medium text-[var(--ink)]">
+                  Full name
+                </label>
+                <input
+                  className="field"
+                  value={form.contactName}
+                  onChange={set("contactName")}
+                  placeholder="e.g. Priya Sharma"
+                  autoComplete="name"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-[var(--ink)]">
+                    Email
+                  </label>
+                  <input
+                    className="field"
+                    type="email"
+                    value={form.contactEmail}
+                    onChange={set("contactEmail")}
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="block text-sm font-medium text-[var(--ink)]">
+                    Phone
+                  </label>
+                  <input
+                    className="field"
+                    type="tel"
+                    value={form.contactPhone}
+                    onChange={set("contactPhone")}
+                    placeholder="+91 98765 43210"
+                    autoComplete="tel"
+                  />
+                </div>
+              </div>
+
+              {/* Error */}
+              {error && (
+                <p className="rounded-lg bg-[var(--danger-soft)] px-3 py-2.5 text-sm text-[var(--danger)]">
+                  {error}
+                </p>
+              )}
+
+              {/* Submit */}
               <button
                 type="submit"
                 disabled={submitting}
-                className="btn btn-primary sm:min-w-[180px]"
+                className="btn btn-primary w-full !py-3 text-base"
               >
                 {submitting ? "Submitting…" : "Submit report"}
               </button>
+
+              <p className="text-center text-xs text-[var(--ink-subtle)]">
+                After submit you'll be taken to your claim page to search found items.
+              </p>
+
             </div>
           </div>
         </form>

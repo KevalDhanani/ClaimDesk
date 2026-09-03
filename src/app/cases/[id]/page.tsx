@@ -4,11 +4,13 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { StatusBadge } from "@/components/StatusBadge";
+import { InvestigationChecklist } from "@/components/InvestigationChecklist";
 import { useCaseLive } from "@/hooks/useCaseLive";
 import { recoveryApi } from "@/lib/api/client";
 import { actorLabel, recommendationLabel } from "@/lib/ui/labels";
 import { IconSearch } from "@/components/Icons";
 import type { CustodyDomain, MatchComparison } from "@/lib/domain/types";
+import { MAX_OWNERSHIP_ATTEMPTS } from "@/lib/domain/investigation";
 
 const CUSTODY_LABEL: Record<CustodyDomain, string> = {
   aircraft: "Aircraft",
@@ -19,7 +21,7 @@ const CUSTODY_LABEL: Record<CustodyDomain, string> = {
 export default function CasePage() {
   const params = useParams<{ id: string }>();
   const caseId = params.id;
-  const { recoveryCase, activities, candidates, selectedItem, error, loading, refresh } =
+  const { recoveryCase, activities, candidates, selectedItem, investigationSteps, error, loading, refresh } =
     useCaseLive(caseId);
 
   const [busy, setBusy] = useState<string | null>(null);
@@ -28,12 +30,19 @@ export default function CasePage() {
   const [custody, setCustody] = useState<CustodyDomain | "">("");
   const [evidence, setEvidence] = useState("");
   const [challengePrompt, setChallengePrompt] = useState<string | null>(null);
+  const [verifyMessage, setVerifyMessage] = useState<string | null>(null);
+  const [lastSearchEmpty, setLastSearchEmpty] = useState(false);
 
   const comparisonsById = useMemo(() => {
     const map = new Map<string, MatchComparison>();
     recoveryCase?.comparisons.forEach((c) => map.set(c.foundItemId, c));
     return map;
   }, [recoveryCase]);
+
+  const searchedWithNoCandidates = useMemo(() => {
+    if (!recoveryCase || recoveryCase.candidateIds.length > 0) return false;
+    return activities.some((a) => a.type === "search_performed");
+  }, [recoveryCase, activities]);
 
   async function run(label: string, fn: () => Promise<void>) {
     setBusy(label);
@@ -70,7 +79,7 @@ export default function CasePage() {
     <div className="shell space-y-8 py-8 sm:py-10">
       <div>
         <Link
-          href="/#claims"
+          href="/claims"
           className="text-sm text-[var(--ink-muted)] hover:text-[var(--accent)]"
         >
           ← My claims
@@ -137,7 +146,7 @@ export default function CasePage() {
                 className="btn btn-primary"
                 onClick={() =>
                   run("search", async () => {
-                    await recoveryApi.search({
+                    const res = await recoveryApi.search({
                       description: searchValue,
                       flightNumber: recoveryCase.flightNumber,
                       date: recoveryCase.travelDate,
@@ -145,6 +154,7 @@ export default function CasePage() {
                       recoveryCaseId: recoveryCase.id,
                       actor: "human",
                     });
+                    setLastSearchEmpty(Boolean(res.monitoring) || (res.resultCount ?? res.results.length) === 0);
                   })
                 }
               >
@@ -156,13 +166,31 @@ export default function CasePage() {
           <section className="space-y-3">
             <h2 className="text-base font-semibold">Possible matches</h2>
             {candidates.length === 0 ? (
-              <div className="surface-lg px-5 py-8 text-sm text-[var(--ink-muted)]">
-                No matches yet. Search found items to see what may belong to you.
+              <div className="surface-lg space-y-2 px-5 py-8 text-sm text-[var(--ink-muted)]">
+                {lastSearchEmpty || searchedWithNoCandidates ? (
+                  <>
+                    <p className="font-medium text-[var(--ink)]">
+                      No matching items in current inventory
+                    </p>
+                    <p>
+                      That doesn't necessarily mean it hasn't been found — newly
+                      recovered items may not be entered yet. Your claim stays open;
+                      you can search again later or add more detail.
+                    </p>
+                  </>
+                ) : (
+                  <p>
+                    No matches yet. Search found items to see what may belong to you.
+                  </p>
+                )}
               </div>
             ) : (
               <ul className="space-y-2">
                 {candidates.map((item) => {
                   const cmp = comparisonsById.get(item.id);
+                  const unavailable = item.status !== "unclaimed";
+                  const isActionable = !unavailable && !recoveryCase.ownershipLocked;
+                  const isGoodMatch = cmp && cmp.recommendation !== "no_match";
                   return (
                     <li key={item.id} className="surface-lg p-5">
                       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -179,27 +207,44 @@ export default function CasePage() {
                           <p className="mt-1 text-xs text-[var(--ink-subtle)]">
                             {CUSTODY_LABEL[item.custodyDomain]} · {item.custodyOwner}
                             {item.flightNumber ? ` · ${item.flightNumber}` : ""}
+                            {unavailable ? ` · ${item.status.replace(/_/g, " ")}` : ""}
                           </p>
                         </div>
-                        {cmp && (
-                          <span className="rounded bg-[var(--accent-soft)] px-2 py-1 text-[11px] font-semibold text-[var(--accent)]">
+                        {unavailable ? (
+                          <span className="rounded bg-[var(--danger-soft)] px-2 py-1 text-[11px] font-semibold text-[var(--danger)]">
+                            Unavailable
+                          </span>
+                        ) : cmp ? (
+                          <span
+                            className={`rounded px-2 py-1 text-[11px] font-semibold ${
+                              cmp.recommendation === "strong_match"
+                                ? "bg-[var(--success-soft)] text-[var(--success)]"
+                                : cmp.recommendation === "partial_match"
+                                  ? "bg-[var(--warning-soft)] text-[var(--warning)]"
+                                  : "bg-[#eef1f4] text-[var(--ink-muted)]"
+                            }`}
+                          >
                             {cmp.score}% · {recommendationLabel(cmp.recommendation)}
                           </span>
-                        )}
+                        ) : null}
                       </div>
 
                       {cmp && (
-                        <div className="mt-3 space-y-1 text-sm">
-                          {cmp.reasons.map((r) => (
-                            <p key={r} className="text-[var(--success)]">
-                              {r}
-                            </p>
-                          ))}
-                          {cmp.rejectionReasons.map((r) => (
-                            <p key={r} className="text-[var(--danger)]">
-                              {r}
-                            </p>
-                          ))}
+                        <div className="mt-3 border-t border-[var(--border)] pt-3">
+                          <ul className="space-y-1 text-xs">
+                            {cmp.reasons.map((r) => (
+                              <li key={r} className="flex items-start gap-1.5 text-[var(--success)]">
+                                <span className="mt-0.5 shrink-0">✓</span>
+                                <span>{r}</span>
+                              </li>
+                            ))}
+                            {cmp.rejectionReasons.map((r) => (
+                              <li key={r} className="flex items-start gap-1.5 text-[var(--danger)]">
+                                <span className="mt-0.5 shrink-0">✗</span>
+                                <span>{r}</span>
+                              </li>
+                            ))}
+                          </ul>
                         </div>
                       )}
 
@@ -217,11 +262,13 @@ export default function CasePage() {
                             })
                           }
                         >
-                          Review match
+                          {cmp ? "Re-score" : "Review match"}
                         </button>
                         <button
-                          disabled={!!busy}
-                          className="btn btn-secondary !px-3 !py-1.5 !text-xs"
+                          disabled={!!busy || !isActionable}
+                          className={`btn !px-3 !py-1.5 !text-xs ${
+                            isActionable && isGoodMatch ? "btn-primary" : "btn-secondary"
+                          }`}
                           onClick={() =>
                             run(`evidence-${item.id}`, async () => {
                               const res = await recoveryApi.requestEvidence({
@@ -233,7 +280,7 @@ export default function CasePage() {
                             })
                           }
                         >
-                          Confirm it’s yours
+                          Confirm it's yours
                         </button>
                       </div>
                     </li>
@@ -244,12 +291,19 @@ export default function CasePage() {
           </section>
 
           <section className="surface-lg p-5">
-            <h2 className="text-base font-semibold">Confirm it’s yours</h2>
+            <h2 className="text-base font-semibold">Confirm it's yours</h2>
             <p className="mt-1 text-sm text-[var(--ink-muted)]">
-              Public listings don’t show private details. Share something only the
+              Public listings don't show private details. Share something only the
               owner would know so we can confirm the match.
             </p>
-            {challengePrompt && (
+            {recoveryCase.ownershipLocked && (
+              <p className="mt-3 rounded bg-[var(--danger-soft)] px-3 py-2 text-sm text-[var(--danger)]">
+                Ownership checks are paused after {MAX_OWNERSHIP_ATTEMPTS} unsuccessful
+                attempts. This claim is flagged for manual review — pickup won't be
+                authorized from this check.
+              </p>
+            )}
+            {challengePrompt && !recoveryCase.ownershipLocked && (
               <p className="mt-3 rounded bg-[var(--warning-soft)] px-3 py-2 text-sm text-[var(--warning)]">
                 {challengePrompt}
               </p>
@@ -260,26 +314,56 @@ export default function CasePage() {
                 placeholder="e.g. small red keychain inside"
                 value={evidence}
                 onChange={(e) => setEvidence(e.target.value)}
+                disabled={Boolean(recoveryCase.ownershipLocked)}
               />
               <button
-                disabled={!!busy || !recoveryCase.selectedFoundItemId}
+                disabled={
+                  !!busy ||
+                  !recoveryCase.selectedFoundItemId ||
+                  Boolean(recoveryCase.ownershipLocked)
+                }
                 className="btn btn-primary"
                 onClick={() =>
                   run("verify", async () => {
                     if (!recoveryCase.selectedFoundItemId) return;
-                    await recoveryApi.verifyOwnership({
+                    const res = await recoveryApi.verifyOwnership({
                       recoveryCaseId: recoveryCase.id,
                       foundItemId: recoveryCase.selectedFoundItemId,
                       evidence,
                       actor: "human",
                     });
+                    setVerifyMessage(res.message);
                   })
                 }
               >
                 Submit confirmation
               </button>
             </div>
-            {recoveryCase.ownershipVerified && (
+            {!recoveryCase.ownershipVerified &&
+              (recoveryCase.ownershipFailCount ?? 0) > 0 &&
+              !recoveryCase.ownershipLocked && (
+                <p className="mt-3 text-xs text-[var(--ink-subtle)]">
+                  {recoveryCase.ownershipFailCount} unsuccessful attempt
+                  {(recoveryCase.ownershipFailCount ?? 0) === 1 ? "" : "s"} ·{" "}
+                  {Math.max(
+                    0,
+                    MAX_OWNERSHIP_ATTEMPTS - (recoveryCase.ownershipFailCount ?? 0)
+                  )}{" "}
+                  remaining
+                </p>
+              )}
+            {verifyMessage && (
+              <p
+                className={`mt-3 text-sm font-medium ${
+                  recoveryCase.ownershipVerified
+                    ? "text-[var(--success)]"
+                    : "text-[var(--warning)]"
+                }`}
+              >
+                {verifyMessage}
+              </p>
+            )}
+            {!verifyMessage && recoveryCase.ownershipVerified && (
               <p className="mt-3 text-sm font-medium text-[var(--success)]">
                 Ownership confirmed
                 {selectedItem ? ` for ${selectedItem.description}` : ""}.
@@ -295,7 +379,11 @@ export default function CasePage() {
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <button
-                disabled={!!busy || !recoveryCase.ownershipVerified}
+                disabled={
+                  !!busy ||
+                  !recoveryCase.ownershipVerified ||
+                  Boolean(recoveryCase.ownershipLocked)
+                }
                 className="btn btn-secondary"
                 onClick={() =>
                   run("prepare", async () => {
@@ -309,7 +397,11 @@ export default function CasePage() {
                 Prepare pickup
               </button>
               <button
-                disabled={!!busy || !recoveryCase.recoveryPrepared}
+                disabled={
+                  !!busy ||
+                  !recoveryCase.recoveryPrepared ||
+                  Boolean(recoveryCase.ownershipLocked)
+                }
                 className="btn btn-success"
                 onClick={() =>
                   run("authorize", async () => {
@@ -361,7 +453,11 @@ export default function CasePage() {
           </section>
         </div>
 
-        <aside className="space-y-3">
+        <aside className="space-y-4">
+          {investigationSteps.length > 0 && (
+            <InvestigationChecklist steps={investigationSteps} />
+          )}
+          <div className="space-y-3">
           <h2 className="text-base font-semibold">Activity</h2>
           <p className="text-xs text-[var(--ink-subtle)]">
             Updates appear as your claim progresses.
@@ -392,6 +488,7 @@ export default function CasePage() {
                 ))
             )}
           </ol>
+          </div>
         </aside>
       </div>
     </div>

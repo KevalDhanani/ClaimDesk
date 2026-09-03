@@ -17,6 +17,8 @@ export interface DataStore {
   saveCase(recoveryCase: RecoveryCase): Promise<RecoveryCase>;
   listActivities(recoveryCaseId: string): Promise<Activity[]>;
   addActivity(activity: Activity): Promise<Activity>;
+  upsertFlight(flight: Flight): Promise<void>;
+  upsertFoundItem(item: FoundItemPublic, secrets?: FoundItemSecret): Promise<void>;
 }
 
 export function generateId(prefix: string): string {

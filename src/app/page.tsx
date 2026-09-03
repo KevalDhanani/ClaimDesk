@@ -1,17 +1,18 @@
 import Link from "next/link";
 import { recoveryService } from "@/lib/domain/recovery-service";
-import { StatusBadge } from "@/components/StatusBadge";
 import {
   IconDesk,
-  IconLuggage,
   IconPlane,
   IconRoute,
   IconSearch,
   IconShieldCheck,
 } from "@/components/Icons";
 import { HeroPlanes } from "@/components/HeroPlanes";
+import { ClaimsList } from "@/components/ClaimsList";
 
 export const dynamic = "force-dynamic";
+
+const HOME_CLAIMS_PREVIEW = 3;
 
 const STEPS = [
   {
@@ -59,29 +60,33 @@ export default async function DashboardPage() {
       <section className="hero">
         <div className="hero-pattern" aria-hidden />
         <div className="hero-glow" aria-hidden />
-        <div className="hero-art" aria-hidden>
-          <HeroPlanes />
-        </div>
         <div className="hero-fade" aria-hidden />
         <div className="shell relative z-[2] py-14 sm:py-16 lg:py-20">
-          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--highlight)]">
-            AeroOne · Passenger assistance
-          </p>
-          <h1 className="mt-3 max-w-2xl text-[clamp(2rem,4vw,2.75rem)] font-semibold leading-tight tracking-tight text-white">
-            Lost &amp; Found for your AeroOne journey
-          </h1>
-          <p className="mt-4 max-w-xl text-[15px] leading-relaxed text-white/75 sm:text-base">
-            Report something left behind on your flight or at a partner airport,
-            match it with held inventory, confirm ownership, and arrange pickup —
-            all in one official ClaimDesk case.
-          </p>
-          <div className="mt-8 flex flex-wrap gap-3">
-            <Link href="/report" className="btn btn-on-dark">
-              Report an item
-            </Link>
-            <Link href="/#claims" className="btn btn-ghost">
-              View my claims
-            </Link>
+          <div className="hero-layout">
+            <div className="hero-copy">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--highlight)]">
+                AeroOne · Passenger assistance
+              </p>
+              <h1 className="mt-3 text-[clamp(2rem,4vw,2.75rem)] font-semibold leading-tight tracking-tight text-white">
+                Lost &amp; Found for your AeroOne journey
+              </h1>
+              <p className="mt-4 text-[15px] leading-relaxed text-white/75 sm:text-base">
+                Report something left behind on your flight or at a partner airport,
+                match it with held inventory, confirm ownership, and arrange pickup —
+                all in one official ClaimDesk case.
+              </p>
+              <div className="mt-8 flex flex-wrap gap-3">
+                <Link href="/report" className="btn btn-on-dark">
+                  Report an item
+                </Link>
+                <Link href="/claims" className="btn btn-ghost">
+                  View my claims
+                </Link>
+              </div>
+            </div>
+            <div className="hero-art" aria-hidden>
+              <HeroPlanes />
+            </div>
           </div>
         </div>
       </section>
@@ -147,53 +152,27 @@ export default async function DashboardPage() {
             </span>
           </div>
 
-          {cases.length === 0 ? (
-            <div className="surface-lg flex flex-col items-start gap-5 px-6 py-10 sm:flex-row sm:items-center">
-              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)]">
-                <IconLuggage className="h-9 w-9" title="Luggage" />
-              </span>
-              <div>
-                <p className="text-lg font-semibold text-[var(--ink)]">
-                  No open claims
-                </p>
-                <p className="mt-2 max-w-md text-sm text-[var(--ink-muted)]">
-                  If you left something on an AeroOne flight or in a partner
-                  terminal, report it here. After you submit, open the claim to
-                  search found items and confirm a match.
-                </p>
-                <Link href="/report" className="btn btn-primary mt-5">
-                  Report an item
-                </Link>
-              </div>
+          <ClaimsList cases={cases.slice(0, HOME_CLAIMS_PREVIEW)} />
+
+          {cases.length > HOME_CLAIMS_PREVIEW ? (
+            <div className="flex justify-end pt-1">
+              <Link
+                href="/claims"
+                className="text-sm font-semibold text-[var(--accent)] hover:text-[var(--accent-hover)]"
+              >
+                View more →
+              </Link>
             </div>
-          ) : (
-            <ul className="space-y-3">
-              {cases.map((c) => (
-                <li key={c.id}>
-                  <Link
-                    href={`/cases/${c.id}`}
-                    className="surface-lg block px-5 py-4 transition hover:border-[var(--accent-bright)]"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold capitalize text-[var(--ink)]">
-                          {c.itemDescription}
-                        </p>
-                        <p className="mt-1 text-sm text-[var(--ink-muted)]">
-                          {c.flightNumber} · {c.origin} → {c.destination} ·{" "}
-                          {c.travelDate}
-                        </p>
-                      </div>
-                      <StatusBadge status={c.status} />
-                    </div>
-                    <p className="mt-3 font-mono text-[11px] text-[var(--ink-subtle)]">
-                      Claim {c.id}
-                    </p>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
+          ) : cases.length > 0 ? (
+            <div className="flex justify-end pt-1">
+              <Link
+                href="/claims"
+                className="text-sm font-semibold text-[var(--accent)] hover:text-[var(--accent-hover)]"
+              >
+                View all claims →
+              </Link>
+            </div>
+          ) : null}
         </div>
 
         <div className="space-y-4">
