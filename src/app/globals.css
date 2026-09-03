@@ -329,6 +329,22 @@ a {
   border-bottom: 1px solid var(--border);
 }
 
+/* Monogram logo badge */
+.logo-badge {
+  background: #ffffff;
+  box-shadow:
+    0 1px 3px rgba(7, 21, 38, 0.15),
+    0 0 0 1px rgba(255, 255, 255, 0.9);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.logo-badge:hover {
+  transform: scale(1.05);
+  box-shadow:
+    0 2px 6px rgba(7, 21, 38, 0.2),
+    0 0 0 1px rgba(255, 255, 255, 0.9);
+}
+
 .sr-only {
   position: absolute;
   width: 1px;

@@ -5,10 +5,20 @@ export function SiteFooter() {
     <footer className="mt-auto bg-[var(--navy-950)] text-white">
       <div className="shell grid gap-8 py-10 sm:grid-cols-[1.4fr_1fr]">
         <div>
-          <p className="text-lg font-semibold tracking-tight">AeroOne</p>
-          <p className="mt-1 text-sm text-white/65">Connecting India and beyond</p>
-          <p className="mt-4 max-w-md text-sm leading-relaxed text-white/70">
-            ClaimDesk is the official lost property portal for AeroOne passengers.
+          {/* Logo mark + wordmark */}
+          <div className="flex items-center gap-3">
+            <span className="logo-badge flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[15px] font-extrabold leading-none tracking-tighter text-[var(--navy-900)]">
+              AO
+            </span>
+            <div>
+              <p className="text-[15px] leading-tight tracking-tight">
+                <span className="font-light opacity-75">Claim</span><span className="font-bold">Desk</span>
+              </p>
+              <p className="text-[10px] font-medium tracking-[0.1em] text-white/40">AEROONE LOST PROPERTY</p>
+            </div>
+          </div>
+          <p className="mt-4 max-w-md text-sm leading-relaxed text-white/60">
+            The official lost property portal for AeroOne passengers.
             Items found on board or at partner airport desks are matched to your
             claim, confirmed with ownership details, and released for pickup.
           </p>

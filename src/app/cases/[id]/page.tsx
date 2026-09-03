@@ -190,7 +190,7 @@ export default function CasePage() {
                   const cmp = comparisonsById.get(item.id);
                   const unavailable = item.status !== "unclaimed";
                   const isActionable = !unavailable && !recoveryCase.ownershipLocked;
-                  const isGoodMatch = cmp && cmp.recommendation !== "no_match";
+                  const isGoodMatch = cmp && (cmp.recommendation === "strong_match" || cmp.recommendation === "partial_match");
                   return (
                     <li key={item.id} className="surface-lg p-5">
                       <div className="flex flex-wrap items-start justify-between gap-3">

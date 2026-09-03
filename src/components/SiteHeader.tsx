@@ -28,15 +28,16 @@ export function SiteHeader() {
     >
       <div className="shell flex items-center justify-between gap-4 py-3.5">
         <Link href="/" className="flex min-w-0 items-center gap-3">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded bg-white text-xs font-bold tracking-tight text-[var(--navy-900)]">
+          {/* Monogram badge */}
+          <span className="logo-badge flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[15px] font-extrabold leading-none tracking-tighter text-[var(--navy-900)]">
             AO
           </span>
           <span className="min-w-0">
-            <span className="block text-[15px] font-semibold leading-tight">
-              ClaimDesk
+            <span className="block text-[15px] leading-tight tracking-tight">
+              <span className="font-light opacity-90">Claim</span><span className="font-bold">Desk</span>
             </span>
-            <span className="block text-[11px] text-white/65">
-              AeroOne Lost Property
+            <span className="block text-[10px] font-medium tracking-[0.1em] text-white/50">
+              AEROONE LOST PROPERTY
             </span>
           </span>
         </Link>
