@@ -1,68 +1,30 @@
 # ClaimDesk
 
-Airline lost-property recovery for the **OpenAI WebMCP Challenge**.
+Lost property portal for AeroOne passengers. Report something left on a flight or at a partner airport, match it against found inventory, confirm it’s yours with a private detail, then approve pickup.
 
-**Lost after your flight. Matched, proven, ready for pickup.**
+The usual way to do this is a form + a lot of back-and-forth. ClaimDesk keeps that as a normal website you can use yourself — and also exposes the same recovery steps as WebMCP tools. In ChatGPT’s browser (or any WebMCP host), an agent can open a claim, search inventory, score matches, and ask for ownership evidence while you stay in control of the final pickup authorization. Tools call the same Next.js APIs as the UI; Firestore stays server-only (Admin SDK).
 
-## Product
-
-ClaimDesk is AeroOne’s passenger lost-property portal. You report something left on a flight or at a partner airport, the system searches found inventory, you confirm ownership with a private detail, then you approve pickup.
-
-The same workflow is available to humans in the UI and to ChatGPT through **WebMCP tools**. Tools call the same Next.js APIs as the website. The browser never talks to Firestore — only the server (Firebase Admin SDK) does.
-
-Typical flow:
-
-1. Report a lost item → claim opened  
-2. Search found inventory (aircraft, airport lost & found, terminal)  
-3. Compare candidates (strong / partial / reject)  
-4. Confirm ownership with a private identifying detail  
-5. Prepare pickup details → passenger must explicitly approve release  
-
-## WebMCP / challenge submission
-
-This app is built as a **WebMCP host**: tools are registered in the page with `document.modelContext.registerTool` (`src/lib/webmcp/register-tools.ts`). There is no in-page chatbot, agent console, or MCP settings — the passenger UI is a normal lost-property site.
-
-**Why it fits the challenge:** the agent can investigate a claim (search, score matches, request evidence) while the passenger keeps the consequential decision (authorize pickup). Ownership secrets never appear in public listings or tool output.
-
-**How to demo for judges**
-
-1. Deploy (or run locally) and seed inventory (`npm run seed`).  
-2. Open the app in **ChatGPT’s in-app browser** (or Chrome with WebMCP enabled).  
-3. Keep the claim page visible (`/cases/[id]`) while the agent works — it polls every 2 seconds.  
-4. Run the happy-path prompt below, then ownership + pickup approval.
-
-Submitted surface: the live site URL. Tools listed at the bottom of this file.
+In short: less clicking through every step when an agent helps, same safety gates (no public secrets, human confirm before release).
 
 ## Setup
 
-### 1. Firebase project
+### Firebase
 
-1. Create a project at [Firebase Console](https://console.firebase.google.com/).
-2. Create a **Firestore** database (Native mode). Start in production mode if prompted.
-3. Deploy security rules from this repo (Admin SDK bypasses them; clients are denied):
+1. Create a Firebase project and a Firestore database.
+2. Deploy rules from this repo (`firestore.rules` denies all client access):
 
 ```bash
-# Optional: npm i -g firebase-tools && firebase login && firebase use <project-id>
 firebase deploy --only firestore:rules
 ```
 
-Or paste `firestore.rules` into **Firestore → Rules** in the console and publish.
+Or paste the file into Firestore → Rules.
 
-Collections used (created automatically on first write / seed):
+Collections: `flights`, `foundItems` (+ `secrets` subcollection), `recoveryCases`, `activities`.
 
-| Collection | Purpose |
-|---|---|
-| `flights` | Schedule for lookup |
-| `foundItems` | Public found-item inventory |
-| `foundItems/{id}/secrets` | Ownership clues (never exposed to clients) |
-| `recoveryCases` | Passenger claims |
-| `activities` | Claim timeline |
+### Env
 
-### 2. Service account credentials
-
-1. Firebase Console → **Project settings** → **Service accounts**.
-2. **Generate new private key** → download the JSON.
-3. Copy `.env.example` to `.env.local` and map:
+1. Service account JSON from Project settings → Service accounts.
+2. Copy `.env.example` → `.env.local`:
 
 | JSON field | Env var |
 |---|---|
@@ -70,15 +32,11 @@ Collections used (created automatically on first write / seed):
 | `client_email` | `FIREBASE_ADMIN_CLIENT_EMAIL` |
 | `private_key` | `FIREBASE_ADMIN_PRIVATE_KEY` |
 
-Keep the private key in double quotes with `\n` newlines, for example:
+Keep the private key quoted with `\n` escapes. Don’t commit `.env.local`.
 
-```env
-FIREBASE_ADMIN_PRIVATE_KEY="-----BEGIN PRIVATE KEY-----\nMIIE...\n-----END PRIVATE KEY-----\n"
-```
+Optional: `NEXT_PUBLIC_SITE_URL` for production OG/sitemap.
 
-Never commit `.env.local` or the downloaded JSON. Optional: `NEXT_PUBLIC_SITE_URL` for sitemap / Open Graph in production.
-
-### 3. Install, seed, run
+### Run
 
 ```bash
 npm install
@@ -88,95 +46,53 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-`npm run seed` upserts **6 flights** and **FI-1001–1006**. It does not delete existing claims. For a clean slate, clear the collections above in Firestore first, then seed.
+`npm run seed` upserts demo flights and FI-1001–1006. It doesn’t wipe claims — clear Firestore first if you want a clean slate.
 
-### Deploy (e.g. Vercel)
+## Trying it
 
-Set the same `FIREBASE_ADMIN_*` env vars on the host (server-only). Optionally set `NEXT_PUBLIC_SITE_URL` to the public URL. Redeploy after changing env.
+**UI:** `/report` → open the claim → search → confirm ownership → prepare → confirm pickup.
 
-## How to test
+**WebMCP:** open the site in ChatGPT’s in-app browser (or Chrome with WebMCP). Claim detail pages poll every 2s; list pages need a refresh.
 
-**As a passenger (UI)**
+### Prompts that work with the seed
 
-1. Report an item at `/report`.  
-2. Open the claim at `/cases/[id]`.  
-3. Search found items → Review match → Confirm it’s yours → Prepare pickup → Confirm pickup.
+Date `2026-09-01`, flight `AO-123` (Mumbai → Delhi).
 
-**With WebMCP (ChatGPT / enabled browser)**
+1. **Happy path**
 
-1. Open `http://localhost:3000` (or the deployed URL) in the agent browser.  
-2. Use one of the prompts below.  
-3. Watch `/claims` and the claim detail page — detail pages update live; list pages need a refresh or navigation.
+   > I lost my black backpack on AO-123 on 2026-09-01, Mumbai to Delhi. I'm not sure whether I left it on the aircraft or at the airport. Please investigate.
 
-## Scenarios to try (2–3)
+   Expect FI-1003 as the strong match. Ownership clue: *small red keychain*. Then approve pickup when asked.
 
-Use the seeded inventory. Dates: **2026-09-01**. Flight: **AO-123** Mumbai → Delhi unless noted.
+2. **Wrong clue first** — say *blue keychain*, then *small red keychain*.
 
-### 1. Happy path — black backpack (main demo)
+3. **No match**
 
-Prompt:
+   > I lost my silver watch on AO-123 on 2026-09-01.
 
-> I lost my black backpack on AO-123 on 2026-09-01, Mumbai to Delhi. I'm not sure whether I left it on the aircraft or at the airport. Please investigate.
+   Claim stays open.
 
-Expect:
-
-- Claim created, flight looked up, inventory searched.  
-- Compare: **FI-1001** reject (wrong flight) · **FI-1002** partial (airport) · **FI-1003** strong (aircraft cabin).  
-- When asked for a private detail: **There was a small red keychain inside.**  
-- Agent prepares pickup, then you approve: **Yes, authorize recovery.**  
-- UI: ownership confirmed → ready for pickup at Delhi Airport Lost & Found / AeroOne transfer desk.
-
-Claimed (**FI-1004**) and in-transit (**FI-1006**) items are not offered as recoverable.
-
-### 2. Wrong evidence, then correct
-
-Same backpack claim. When asked for a private detail, first say **A blue keychain.** Verification fails (limited attempts). Then: **There was a small red keychain inside.** Pickup can proceed.
-
-### 3. No match — claim stays open
-
-> I lost my silver watch on AO-123 on 2026-09-01.
-
-Expect no available match (seed has no watch). The claim stays open so you can search again later. **FI-1005** is a phone, not a watch.
-
-Optional extra: **I was on AO-999 yesterday** — claim can still open with a note that the flight is not on file.
-
-## Seed inventory
+## Seed items
 
 | ID | Role |
 |---|---|
-| FI-1001 | Decoy — wrong flight (AO-315) |
-| FI-1002 | Partial — same flight, airport desk |
-| FI-1003 | Strong — aircraft cabin; secret: small red keychain |
-| FI-1004 | Claimed — excluded from recoverable search |
-| FI-1005 | Phone — keeps “silver watch” no-match clean |
-| FI-1006 | In transit — excluded from recoverable search |
+| FI-1001 | Reject (wrong flight) |
+| FI-1002 | Partial (airport) |
+| FI-1003 | Strong (aircraft; red keychain) |
+| FI-1004 | Claimed — not recoverable |
+| FI-1005 | Phone (so watch stays no-match) |
+| FI-1006 | In transit — not recoverable |
 
 ## Stack
 
-- Next.js (App Router) + TypeScript + Tailwind CSS v4  
-- Firebase Firestore via Firebase Admin SDK (server only)  
-- IBM Plex Sans / IBM Plex Mono  
-
-## License
-
-MIT — see [LICENSE](LICENSE).  
-
+Next.js App Router, TypeScript, Tailwind v4, Firebase Admin / Firestore.
 
 ## WebMCP tools
 
-Registered via `document.modelContext.registerTool`. Descriptions are for the agent, not the passenger UI.
+`create_recovery_case`, `get_flight_details`, `search_found_items`, `get_item_details`, `compare_possible_match`, `request_ownership_evidence`, `verify_ownership`, `prepare_recovery_request`, `authorize_recovery`, `get_recovery_status`
 
-- `create_recovery_case`  
-- `get_flight_details`  
-- `search_found_items`  
-- `get_item_details`  
-- `compare_possible_match`  
-- `request_ownership_evidence`  
-- `verify_ownership`  
-- `prepare_recovery_request`  
-- `authorize_recovery`  
-- `get_recovery_status`  
+Registered in `src/lib/webmcp/register-tools.ts`.
 
-## UI notes
+## License
 
-Passenger copy should sound like an airline portal (claim, match, confirm ownership, pickup). Do not mention demo, Firebase, WebMCP, MCP, or AI in the UI. Timeline actors: **You** / **ClaimDesk** / **System**.
+MIT — see [LICENSE](LICENSE).
