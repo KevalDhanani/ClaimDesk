@@ -5,7 +5,6 @@ import { recoveryApi } from "@/lib/api/client";
 import type { InvestigationStep } from "@/lib/domain/investigation";
 import type { Activity, FoundItemPublic, RecoveryCase } from "@/lib/domain/types";
 
-/** Live case updates via backend API polling (no client Firebase). */
 export function useCaseLive(caseId: string) {
   const [recoveryCase, setRecoveryCase] = useState<RecoveryCase | null>(null);
   const [activities, setActivities] = useState<Activity[]>([]);

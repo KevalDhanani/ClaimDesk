@@ -6,7 +6,6 @@ function normalizeEvidence(text: string): string {
     .trim();
 }
 
-/** Fuzzy check: claimant evidence must cover a substantial part of a stored clue. */
 export function evidenceMatches(claim: string, clues: string[]): boolean {
   const normalizedClaim = normalizeEvidence(claim);
   if (!normalizedClaim || normalizedClaim.length < 4) return false;

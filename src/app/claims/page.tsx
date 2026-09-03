@@ -1,8 +1,20 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { recoveryService } from "@/lib/domain/recovery-service";
 import { ClaimsList } from "@/components/ClaimsList";
 
 export const dynamic = "force-dynamic";
+
+export const metadata: Metadata = {
+  title: "My claims",
+  description:
+    "View and manage your AeroOne lost property claims. Track investigation progress and arrange pickup.",
+  alternates: { canonical: "/claims" },
+  openGraph: {
+    title: "My claims | ClaimDesk",
+    url: "/claims",
+  },
+};
 
 export default async function ClaimsPage() {
   const cases = await recoveryService.listCases();

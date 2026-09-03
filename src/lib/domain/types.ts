@@ -95,9 +95,7 @@ export interface RecoveryCase {
   recoveryPrepared: boolean;
   recoveryAuthorized: boolean;
   recoveryPacket: RecoveryPacket | null;
-  /** Failed verify_ownership attempts for the current investigation. */
   ownershipFailCount?: number;
-  /** After too many failed attempts, further verification is paused for review. */
   ownershipLocked?: boolean;
   createdAt: string;
   updatedAt: string;
@@ -152,6 +150,68 @@ export interface VerifyOwnershipInput {
 export interface CaseActionInput {
   recoveryCaseId: string;
   actor?: "human" | "agent";
+}
+
+export interface AuthorizeInput extends CaseActionInput {
+  humanConfirmed: boolean;
+}
+
+export interface RequestEvidenceInput extends CaseActionInput {
+  foundItemId?: string;
+}
+
+export interface SearchHit {
+  foundItemId: string;
+  description: string;
+  color: string;
+  brand: string | null;
+  foundLocation: string;
+  foundAt: string;
+  flightNumber: string | null;
+  flightDate: string | null;
+  custodyDomain: CustodyDomain;
+  custodyOwner: string;
+  status: FoundItemPublic["status"];
+  matchContext?: string;
+}
+
+export interface SearchItemsResult {
+  results: SearchHit[];
+  resultCount: number;
+  unavailableSkipped: number;
+  monitoring: boolean;
+  message: string;
+}
+
+export interface CompareResult extends MatchComparison {
+  item: FoundItemPublic;
+  recoverable: boolean;
+}
+
+export interface RequestEvidenceResult {
+  recoveryCaseId: string;
+  foundItemId: string;
+  itemSummary: string;
+  custodyDomain: CustodyDomain;
+  challengeType: string;
+  prompt: string;
+  guidance: string;
+  attemptsRemaining: number;
+  warning: string;
+}
+
+export interface VerifyOwnershipResult {
+  verified: boolean;
+  message: string;
+  ownershipLocked?: boolean;
+  attemptsRemaining?: number;
+}
+
+export interface PrepareResult {
+  recoveryCaseId: string;
+  packet: RecoveryPacket;
+  alreadyPrepared: boolean;
+  nextStep: string;
 }
 
 export const STATUS_ORDER: CaseStatus[] = [

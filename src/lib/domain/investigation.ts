@@ -24,7 +24,6 @@ export interface InvestigationStep {
   state: InvestigationStepState;
 }
 
-/** Customer-facing checklist derived from real case + activity state. */
 export function buildInvestigationSteps(
   recoveryCase: RecoveryCase,
   activities: Activity[]

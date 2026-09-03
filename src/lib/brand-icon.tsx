@@ -1,4 +1,3 @@
-/** Shared AO monogram badge markup for favicon / OG image generation. */
 export function BrandIconMark({
   size,
   fontSize,

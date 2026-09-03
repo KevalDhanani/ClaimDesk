@@ -1,3 +1,23 @@
+import type { InvestigationStep } from "@/lib/domain/investigation";
+import type {
+  Activity,
+  AuthorizeInput,
+  CaseActionInput,
+  CompareMatchInput,
+  CompareResult,
+  CreateCaseInput,
+  Flight,
+  FoundItemPublic,
+  PrepareResult,
+  RecoveryCase,
+  RequestEvidenceInput,
+  RequestEvidenceResult,
+  SearchFoundItemsInput,
+  SearchItemsResult,
+  VerifyOwnershipInput,
+  VerifyOwnershipResult,
+} from "@/lib/domain/types";
+
 async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(path, {
     ...init,
@@ -15,60 +35,60 @@ async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
 export const recoveryApi = {
   dashboard: () =>
-    api<{ cases: import("@/lib/domain/types").RecoveryCase[]; flights: import("@/lib/domain/types").Flight[] }>(
-      "/api/recovery/dashboard"
-    ),
+    api<{ cases: RecoveryCase[]; flights: Flight[] }>("/api/recovery/dashboard"),
+
   getCase: (id: string) =>
     api<{
-      recoveryCase: import("@/lib/domain/types").RecoveryCase;
-      activities: import("@/lib/domain/types").Activity[];
-      candidates: import("@/lib/domain/types").FoundItemPublic[];
-      selectedItem: import("@/lib/domain/types").FoundItemPublic | null;
-      investigationSteps: import("@/lib/domain/investigation").InvestigationStep[];
+      recoveryCase: RecoveryCase;
+      activities: Activity[];
+      candidates: FoundItemPublic[];
+      selectedItem: FoundItemPublic | null;
+      investigationSteps: InvestigationStep[];
     }>(`/api/recovery/cases/${id}`),
-  createCase: (body: Record<string, unknown>) =>
-    api<{ recoveryCaseId: string; status: string }>("/api/recovery/create-case", {
+
+  createCase: (body: CreateCaseInput) =>
+    api<{ recoveryCaseId: string; status: string; recoveryCase: RecoveryCase }>(
+      "/api/recovery/create-case",
+      { method: "POST", body: JSON.stringify(body) }
+    ),
+
+  search: (body: SearchFoundItemsInput) =>
+    api<SearchItemsResult>("/api/recovery/search", {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  search: (body: Record<string, unknown>) =>
+
+  compare: (body: CompareMatchInput) =>
+    api<CompareResult>("/api/recovery/compare", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  requestEvidence: (body: RequestEvidenceInput) =>
+    api<RequestEvidenceResult>("/api/recovery/request-evidence", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  verifyOwnership: (body: VerifyOwnershipInput) =>
+    api<VerifyOwnershipResult>("/api/recovery/verify-ownership", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  prepare: (body: CaseActionInput) =>
+    api<PrepareResult>("/api/recovery/prepare", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+
+  authorize: (body: AuthorizeInput) =>
     api<{
-      results: Array<Record<string, unknown>>;
-      resultCount?: number;
-      monitoring?: boolean;
-      message?: string;
-      unavailableSkipped?: number;
-    }>("/api/recovery/search", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
-  compare: (body: Record<string, unknown>) =>
-    api<Record<string, unknown>>("/api/recovery/compare", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
-  requestEvidence: (body: Record<string, unknown>) =>
-    api<Record<string, unknown>>("/api/recovery/request-evidence", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
-  verifyOwnership: (body: Record<string, unknown>) =>
-    api<{
-      verified: boolean;
+      recoveryCaseId: string;
+      status: string;
+      packet: RecoveryCase["recoveryPacket"];
       message: string;
-      ownershipLocked?: boolean;
-      attemptsRemaining?: number;
-    }>("/api/recovery/verify-ownership", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
-  prepare: (body: Record<string, unknown>) =>
-    api<Record<string, unknown>>("/api/recovery/prepare", {
-      method: "POST",
-      body: JSON.stringify(body),
-    }),
-  authorize: (body: Record<string, unknown>) =>
-    api<Record<string, unknown>>("/api/recovery/authorize", {
+    }>("/api/recovery/authorize", {
       method: "POST",
       body: JSON.stringify(body),
     }),
