@@ -170,7 +170,7 @@ export function ReportForm() {
             {submitting ? "Submitting…" : "Submit report"}
           </button>
           <p className="text-center text-xs text-[var(--ink-subtle)]">
-            After submit you'll be taken to your claim page to search found items.
+            After submit you will be taken to your claim page to search found items.
           </p>
         </div>
       </div>

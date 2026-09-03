@@ -25,15 +25,15 @@ export function OwnershipSection({
 
   return (
     <section className="surface-lg p-5">
-      <h2 className="text-base font-semibold">Confirm it's yours</h2>
+      <h2 className="text-base font-semibold">Confirm it is yours</h2>
       <p className="mt-1 text-sm text-[var(--ink-muted)]">
-        Public listings don't show private details. Share something only the owner
+        Public listings do not show private details. Share something only the owner
         would know so we can confirm the match.
       </p>
       {locked && (
         <p className="mt-3 rounded bg-[var(--danger-soft)] px-3 py-2 text-sm text-[var(--danger)]">
           Ownership checks are paused after {MAX_OWNERSHIP_ATTEMPTS} unsuccessful
-          attempts. This claim is flagged for manual review — pickup won't be
+          attempts. This claim is flagged for manual review — pickup will not be
           authorized from this check.
         </p>
       )}

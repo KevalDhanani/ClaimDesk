@@ -90,7 +90,7 @@ export function MatchCard({
           }`}
           onClick={onRequestEvidence}
         >
-          Confirm it's yours
+          Confirm it is yours
         </button>
       </div>
     </li>

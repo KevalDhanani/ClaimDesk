@@ -177,7 +177,7 @@ export default function CasePage() {
                       No matching items in current inventory
                     </p>
                     <p>
-                      That doesn't necessarily mean it hasn't been found — newly
+                      That does not necessarily mean it has not been found — newly
                       recovered items may not be entered yet. Your claim stays open;
                       you can search again later or add more detail.
                     </p>
