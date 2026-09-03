@@ -157,6 +157,11 @@ Optional extra: **I was on AO-999 yesterday** — claim can still open with a no
 - Firebase Firestore via Firebase Admin SDK (server only)  
 - IBM Plex Sans / IBM Plex Mono  
 
+## License
+
+MIT — see [LICENSE](LICENSE).  
+
+
 ## WebMCP tools
 
 Registered via `document.modelContext.registerTool`. Descriptions are for the agent, not the passenger UI.
